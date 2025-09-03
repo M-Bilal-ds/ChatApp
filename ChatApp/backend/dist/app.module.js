@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
 const config_1 = require("@nestjs/config");
 const auth_module_1 = require("./auth/auth.module");
+const chat_module_1 = require("./chat/chat.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -22,6 +23,7 @@ exports.AppModule = AppModule = __decorate([
             }),
             mongoose_1.MongooseModule.forRoot('mongodb://localhost:27017/chatapp'),
             auth_module_1.AuthModule,
+            chat_module_1.ChatModule,
         ],
         controllers: [],
         providers: [],

@@ -52,7 +52,6 @@ export class AuthService {
   }
 
   async login(user: any): Promise<AuthResponseDto> {
-    // Update last login
     await this.userModel.findByIdAndUpdate(user._id, { lastLogin: new Date() });
 
     const payload = { email: user.email, sub: user._id };

@@ -1,14 +1,14 @@
 <template>
-  <div class="bg-white rounded-2xl shadow-lg p-16 max-w-lg mx-auto">
+  <div class="bg-white rounded-2xl shadow-sm p-16 max-w-lg mx-auto">
     <!-- Header -->
     <div class="text-center mb-8">
       <div class="flex items-center justify-center mb-6">
-        <div class="bg-blue-500 text-white p-3 rounded-full">
+        <div class="bg-[#014f86] text-white p-3 rounded-full">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
           </svg>
         </div>
-        <span class="ml-2 text-3xl font-bold text-blue-500">ChatApp</span>
+        <span class="ml-2 text-3xl font-bold text-[#014f86]">ChatApp</span>
       </div>
       <h2 class="text-2xl font-bold text-gray-800">Log in to your account</h2>
     </div>
@@ -36,9 +36,7 @@
           <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
             Password
           </label>
-          <a href="#" class="text-sm text-blue-500 hover:text-blue-400">
-            Forgot password?
-          </a>
+          
         </div>
         <input
           id="password"
@@ -54,7 +52,7 @@
       <button
         type="submit"
         :disabled="isLoading"
-        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium hover:cursor-pointer text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium hover:cursor-pointer text-white bg-[#014f86] hover:bg-[#013a63] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span v-if="isLoading" class="flex items-center">
           <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
