@@ -57,3 +57,22 @@ export declare class MessageResponseDto {
     }[];
     replyTo?: MessageResponseDto;
 }
+export declare class RemoveParticipantsDto {
+    conversationId: string;
+    participantIds: string[];
+}
+export declare class DeleteMessagesDto {
+    conversationId: string;
+    messageIds: string[];
+}
+export declare class ClearChatDto {
+    conversationId: string;
+}
+export declare class UpdateGroupDto {
+    conversationId: string;
+    name?: string;
+    description?: string;
+}
+export declare class DeleteConversationDto {
+    conversationId: string;
+}

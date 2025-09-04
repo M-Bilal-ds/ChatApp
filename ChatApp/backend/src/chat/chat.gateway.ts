@@ -99,7 +99,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Emit to all participants in the conversation
       this.server
-        .to(`conversation:${data.conversationId}`)
+        .in(`conversation:${data.conversationId}`)
         .emit('message:new', message);
 
       return { success: true, message };
@@ -201,6 +201,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Helper method to emit to conversation participants
   emitToConversation(conversationId: string, event: string, data: any) {
-    this.server.to(`conversation:${conversationId}`).emit(event, data);
+    this.server.in(`conversation:${conversationId}`).emit(event, data);
   }
 }

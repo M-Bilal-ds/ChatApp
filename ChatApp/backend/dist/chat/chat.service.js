@@ -558,6 +558,363 @@ let ChatService = class ChatService {
             return false;
         }
     }
+    async removeParticipants(userId, removeParticipantsDto) {
+        try {
+            const { conversationId, participantIds } = removeParticipantsDto;
+            if (!mongoose_2.Types.ObjectId.isValid(conversationId)) {
+                throw new common_1.BadRequestException('Invalid conversation ID');
+            }
+            if (!mongoose_2.Types.ObjectId.isValid(userId)) {
+                throw new common_1.BadRequestException('Invalid user ID');
+            }
+            if (!participantIds || participantIds.length === 0) {
+                throw new common_1.BadRequestException('At least one participant ID is required');
+            }
+            const invalidIds = participantIds.filter(id => !mongoose_2.Types.ObjectId.isValid(id));
+            if (invalidIds.length > 0) {
+                throw new common_1.BadRequestException('Invalid participant IDs provided');
+            }
+            const conversation = await this.conversationModel.findById(conversationId);
+            if (!conversation) {
+                throw new common_1.NotFoundException('Conversation not found');
+            }
+            if (conversation.type !== 'group') {
+                throw new common_1.BadRequestException('Can only remove participants from group conversations');
+            }
+            if (conversation.createdBy.toString() !== userId) {
+                throw new common_1.ForbiddenException('Only group admin can remove participants');
+            }
+            if (participantIds.includes(userId)) {
+                throw new common_1.BadRequestException('Admin cannot remove themselves from the group');
+            }
+            const participantsToRemove = await this.userModel.find({
+                _id: { $in: participantIds.map(id => new mongoose_2.Types.ObjectId(id)) }
+            });
+            const removedUsernames = participantsToRemove.map(p => p.username);
+            conversation.participants = conversation.participants.filter((p) => !participantIds.some(id => p.toString() === id));
+            conversation.lastActivity = new Date();
+            await conversation.save();
+            await this.createSystemMessage(conversationId, `${removedUsernames.join(', ')} ${removedUsernames.length === 1 ? 'was' : 'were'} removed from the group`);
+            const updatedConversation = await this.conversationModel
+                .findById(conversationId)
+                .populate('participants', 'email username isActive lastLogin')
+                .populate({
+                path: 'lastMessage',
+                populate: { path: 'sender', select: 'email username' },
+            });
+            if (!updatedConversation) {
+                throw new common_1.InternalServerErrorException('Failed to retrieve updated conversation');
+            }
+            return this.formatConversationResponse(updatedConversation);
+        }
+        catch (error) {
+            console.error('Error removing participants:', error);
+            if (error instanceof common_1.BadRequestException ||
+                error instanceof common_1.NotFoundException ||
+                error instanceof common_1.ForbiddenException) {
+                throw error;
+            }
+            throw new common_1.InternalServerErrorException('Failed to remove participants');
+        }
+    }
+    async deleteMessages(userId, deleteMessagesDto) {
+        try {
+            const { conversationId, messageIds } = deleteMessagesDto;
+            if (!mongoose_2.Types.ObjectId.isValid(conversationId)) {
+                throw new common_1.BadRequestException('Invalid conversation ID');
+            }
+            if (!mongoose_2.Types.ObjectId.isValid(userId)) {
+                throw new common_1.BadRequestException('Invalid user ID');
+            }
+            if (!messageIds || messageIds.length === 0) {
+                throw new common_1.BadRequestException('At least one message ID is required');
+            }
+            const invalidIds = messageIds.filter(id => !mongoose_2.Types.ObjectId.isValid(id));
+            if (invalidIds.length > 0) {
+                throw new common_1.BadRequestException('Invalid message IDs provided');
+            }
+            const conversation = await this.conversationModel.findById(conversationId);
+            if (!conversation) {
+                throw new common_1.NotFoundException('Conversation not found');
+            }
+            if (!conversation.participants.some((p) => p.toString() === userId)) {
+                throw new common_1.ForbiddenException('You are not a participant in this conversation');
+            }
+            const isAdmin = conversation.type === 'group' && conversation.createdBy.toString() === userId;
+            const messages = await this.messageModel.find({
+                _id: { $in: messageIds.map(id => new mongoose_2.Types.ObjectId(id)) },
+                conversationId: new mongoose_2.Types.ObjectId(conversationId),
+            });
+            if (messages.length === 0) {
+                return {
+                    deletedCount: 0,
+                    skippedCount: messageIds.length
+                };
+            }
+            let deletableMessages;
+            if (isAdmin) {
+                deletableMessages = messages;
+            }
+            else {
+                deletableMessages = messages.filter(msg => msg.sender?.toString() === userId);
+            }
+            const skippedCount = messageIds.length - deletableMessages.length;
+            if (deletableMessages.length === 0) {
+                return {
+                    deletedCount: 0,
+                    skippedCount: messageIds.length
+                };
+            }
+            await this.messageModel.deleteMany({
+                _id: { $in: deletableMessages.map(msg => msg._id) }
+            });
+            const lastMessageDeleted = deletableMessages.some(msg => msg._id.toString() === conversation.lastMessage?.toString());
+            if (lastMessageDeleted) {
+                const newLastMessage = await this.messageModel
+                    .findOne({ conversationId: new mongoose_2.Types.ObjectId(conversationId) })
+                    .sort({ createdAt: -1 });
+                await this.conversationModel.findByIdAndUpdate(conversationId, {
+                    lastMessage: newLastMessage?._id || null,
+                    lastActivity: new Date(),
+                });
+            }
+            return {
+                deletedCount: deletableMessages.length,
+                skippedCount,
+            };
+        }
+        catch (error) {
+            console.error('Error deleting messages:', error);
+            if (error instanceof common_1.BadRequestException ||
+                error instanceof common_1.NotFoundException ||
+                error instanceof common_1.ForbiddenException) {
+                throw error;
+            }
+            throw new common_1.InternalServerErrorException('Failed to delete messages');
+        }
+    }
+    async clearChat(userId, conversationId) {
+        try {
+            if (!mongoose_2.Types.ObjectId.isValid(conversationId)) {
+                throw new common_1.BadRequestException('Invalid conversation ID');
+            }
+            if (!mongoose_2.Types.ObjectId.isValid(userId)) {
+                throw new common_1.BadRequestException('Invalid user ID');
+            }
+            const conversation = await this.conversationModel.findById(conversationId);
+            if (!conversation) {
+                throw new common_1.NotFoundException('Conversation not found');
+            }
+            if (!conversation.participants.some((p) => p.toString() === userId)) {
+                throw new common_1.ForbiddenException('You are not a participant in this conversation');
+            }
+            if (conversation.type === 'group' && conversation.createdBy.toString() !== userId) {
+                throw new common_1.ForbiddenException('Only group admin can clear chat history');
+            }
+            const messageCount = await this.messageModel.countDocuments({
+                conversationId: new mongoose_2.Types.ObjectId(conversationId)
+            });
+            await this.messageModel.deleteMany({
+                conversationId: new mongoose_2.Types.ObjectId(conversationId)
+            });
+            await this.conversationModel.findByIdAndUpdate(conversationId, {
+                lastMessage: null,
+                lastActivity: new Date(),
+            });
+            await this.createSystemMessage(conversationId, conversation.type === 'group'
+                ? 'Chat history was cleared by admin'
+                : 'Chat history was cleared');
+            return { clearedCount: messageCount };
+        }
+        catch (error) {
+            console.error('Error clearing chat:', error);
+            if (error instanceof common_1.BadRequestException ||
+                error instanceof common_1.NotFoundException ||
+                error instanceof common_1.ForbiddenException) {
+                throw error;
+            }
+            throw new common_1.InternalServerErrorException('Failed to clear chat');
+        }
+    }
+    async updateGroup(userId, updateGroupDto) {
+        try {
+            const { conversationId, name, description } = updateGroupDto;
+            if (!mongoose_2.Types.ObjectId.isValid(conversationId)) {
+                throw new common_1.BadRequestException('Invalid conversation ID');
+            }
+            if (!mongoose_2.Types.ObjectId.isValid(userId)) {
+                throw new common_1.BadRequestException('Invalid user ID');
+            }
+            if (!name && description === undefined) {
+                throw new common_1.BadRequestException('At least name or description must be provided');
+            }
+            const conversation = await this.conversationModel.findById(conversationId);
+            if (!conversation) {
+                throw new common_1.NotFoundException('Conversation not found');
+            }
+            if (conversation.type !== 'group') {
+                throw new common_1.BadRequestException('Can only update group conversations');
+            }
+            if (conversation.createdBy.toString() !== userId) {
+                throw new common_1.ForbiddenException('Only group admin can update group details');
+            }
+            const updates = { lastActivity: new Date() };
+            let systemMessages = [];
+            if (name && name.trim() && name.trim() !== conversation.name) {
+                const oldName = conversation.name;
+                updates.name = name.trim();
+                systemMessages.push(`Group name changed from "${oldName}" to "${name.trim()}"`);
+            }
+            if (description !== undefined && description !== conversation.description) {
+                updates.description = description?.trim() || undefined;
+                if (description?.trim()) {
+                    systemMessages.push(`Group description updated`);
+                }
+                else {
+                    systemMessages.push(`Group description removed`);
+                }
+            }
+            if (Object.keys(updates).length === 1) {
+                throw new common_1.BadRequestException('No changes detected');
+            }
+            await this.conversationModel.findByIdAndUpdate(conversationId, updates);
+            for (const message of systemMessages) {
+                await this.createSystemMessage(conversationId, message);
+            }
+            const updatedConversation = await this.conversationModel
+                .findById(conversationId)
+                .populate('participants', 'email username isActive lastLogin')
+                .populate({
+                path: 'lastMessage',
+                populate: { path: 'sender', select: 'email username' },
+            });
+            if (!updatedConversation) {
+                throw new common_1.InternalServerErrorException('Failed to retrieve updated conversation');
+            }
+            return this.formatConversationResponse(updatedConversation);
+        }
+        catch (error) {
+            console.error('Error updating group:', error);
+            if (error instanceof common_1.BadRequestException ||
+                error instanceof common_1.NotFoundException ||
+                error instanceof common_1.ForbiddenException) {
+                throw error;
+            }
+            throw new common_1.InternalServerErrorException('Failed to update group');
+        }
+    }
+    async deleteConversation(userId, conversationId) {
+        try {
+            if (!mongoose_2.Types.ObjectId.isValid(conversationId)) {
+                throw new common_1.BadRequestException('Invalid conversation ID');
+            }
+            if (!mongoose_2.Types.ObjectId.isValid(userId)) {
+                throw new common_1.BadRequestException('Invalid user ID');
+            }
+            const conversation = await this.conversationModel.findById(conversationId).populate('participants');
+            if (!conversation) {
+                throw new common_1.NotFoundException('Conversation not found');
+            }
+            if (!conversation.participants.some((p) => p._id.toString() === userId)) {
+                throw new common_1.ForbiddenException('You are not a participant in this conversation');
+            }
+            if (conversation.type === 'direct') {
+                await this.messageModel.deleteMany({
+                    conversationId: new mongoose_2.Types.ObjectId(conversationId)
+                });
+                await this.conversationModel.findByIdAndDelete(conversationId);
+                return { message: 'Conversation deleted successfully' };
+            }
+            else {
+                const isAdmin = conversation.createdBy.toString() === userId;
+                const remainingParticipants = conversation.participants.filter((p) => p._id.toString() !== userId);
+                if (remainingParticipants.length === 0) {
+                    await this.messageModel.deleteMany({
+                        conversationId: new mongoose_2.Types.ObjectId(conversationId)
+                    });
+                    await this.conversationModel.findByIdAndDelete(conversationId);
+                    return { message: 'Group deleted successfully' };
+                }
+                if (isAdmin) {
+                    const newAdminId = remainingParticipants[0]._id || remainingParticipants[0];
+                    const newAdmin = await this.userModel.findById(newAdminId);
+                    const leavingUser = await this.userModel.findById(userId);
+                    conversation.participants = remainingParticipants.map((p) => p._id || p);
+                    conversation.createdBy = newAdminId;
+                    conversation.lastActivity = new Date();
+                    const updatedConversation = await conversation.save();
+                    await this.createSystemMessage(conversationId, `${leavingUser?.username || 'User'} left the group`);
+                    await this.createSystemMessage(conversationId, `${newAdmin?.username || 'User'} is now the group admin`);
+                    const populatedConversation = await this.conversationModel
+                        .findById(conversationId)
+                        .populate('participants')
+                        .populate('createdBy');
+                    return {
+                        message: 'Left group successfully',
+                        reassigned: true,
+                        newAdmin: newAdminId.toString(),
+                        updatedConversation: populatedConversation
+                    };
+                }
+                else {
+                    const user = await this.userModel.findById(userId);
+                    conversation.participants = remainingParticipants.map((p) => p._id || p);
+                    conversation.lastActivity = new Date();
+                    await conversation.save();
+                    await this.createSystemMessage(conversationId, `${user?.username || 'User'} left the group`);
+                    return { message: 'Left group successfully' };
+                }
+            }
+        }
+        catch (error) {
+            console.error('Error deleting conversation:', error);
+            if (error instanceof common_1.BadRequestException ||
+                error instanceof common_1.NotFoundException ||
+                error instanceof common_1.ForbiddenException) {
+                throw error;
+            }
+            throw new common_1.InternalServerErrorException('Failed to delete conversation');
+        }
+    }
+    async getConversationDetails(userId, conversationId) {
+        try {
+            if (!mongoose_2.Types.ObjectId.isValid(conversationId)) {
+                throw new common_1.BadRequestException('Invalid conversation ID');
+            }
+            if (!mongoose_2.Types.ObjectId.isValid(userId)) {
+                throw new common_1.BadRequestException('Invalid user ID');
+            }
+            const conversation = await this.conversationModel
+                .findById(conversationId)
+                .populate('participants', 'email username isActive lastLogin')
+                .populate({
+                path: 'lastMessage',
+                populate: { path: 'sender', select: 'email username' },
+            });
+            if (!conversation) {
+                throw new common_1.NotFoundException('Conversation not found');
+            }
+            if (!conversation.participants.some((p) => p._id.toString() === userId)) {
+                throw new common_1.ForbiddenException('You are not a participant in this conversation');
+            }
+            const isAdmin = conversation.type === 'group' && conversation.createdBy.toString() === userId;
+            const canManage = conversation.type === 'direct' || isAdmin;
+            return {
+                ...this.formatConversationResponse(conversation),
+                isAdmin,
+                canManage,
+            };
+        }
+        catch (error) {
+            console.error('Error getting conversation details:', error);
+            if (error instanceof common_1.BadRequestException ||
+                error instanceof common_1.NotFoundException ||
+                error instanceof common_1.ForbiddenException) {
+                throw error;
+            }
+            throw new common_1.InternalServerErrorException('Failed to get conversation details');
+        }
+    }
 };
 exports.ChatService = ChatService;
 exports.ChatService = ChatService = __decorate([

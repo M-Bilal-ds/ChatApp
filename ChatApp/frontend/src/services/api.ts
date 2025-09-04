@@ -89,7 +89,59 @@ export const chatApi = {
       conversationId,
       messageId
     })
-  }
+  },
+  
+  // Get conversation details with permissions
+  async getConversationDetails(conversationId: string): Promise<Conversation & { isAdmin: boolean; canManage: boolean }> {
+    const response = await apiClient.get(`/chat/conversations/${conversationId}`)
+    return response.data
+  },
+
+  // Remove participants from group (admin only)
+  async removeParticipants(conversationId: string, participantIds: string[]): Promise<Conversation> {
+    const response = await apiClient.delete('/chat/conversations/participants', {
+      data: {
+        conversationId,
+        participantIds
+      }
+    })
+    return response.data
+  },
+
+  // Delete selected messages (users can only delete their own)
+  async deleteMessages(conversationId: string, messageIds: string[]): Promise<{ deletedCount: number; skippedCount: number }> {
+    const response = await apiClient.delete('/chat/messages', {
+      data: {
+        conversationId,
+        messageIds
+      }
+    })
+    return response.data
+  },
+
+  // Clear chat history (admin only for groups)
+  async clearChat(conversationId: string): Promise<{ clearedCount: number }> {
+    const response = await apiClient.delete(`/chat/conversations/${conversationId}/clear`)
+    return response.data
+  },
+
+  // Update group name/description (admin only)
+  async updateGroup(conversationId: string, name?: string, description?: string): Promise<Conversation> {
+    const response = await apiClient.patch('/chat/conversations/group', {
+      conversationId,
+      name,
+      description
+    })
+    return response.data
+  },
+
+  // Delete/Leave conversation
+  async deleteConversation(conversationId: string): Promise<{ message: string; reassigned?: boolean; newAdmin?: string; updatedConversation?: any }> {
+  const response = await apiClient.delete(`/chat/conversations/${conversationId}`)
+  return response.data
+}
+
+
 }
 
 export default apiClient

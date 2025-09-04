@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MessageResponseDto = exports.ConversationResponseDto = exports.UserResponseDto = exports.MarkAsReadDto = exports.SearchUsersDto = exports.AddParticipantsDto = exports.SendMessageDto = exports.CreateGroupConversationDto = exports.CreateDirectConversationDto = void 0;
+exports.DeleteConversationDto = exports.UpdateGroupDto = exports.ClearChatDto = exports.DeleteMessagesDto = exports.RemoveParticipantsDto = exports.MessageResponseDto = exports.ConversationResponseDto = exports.UserResponseDto = exports.MarkAsReadDto = exports.SearchUsersDto = exports.AddParticipantsDto = exports.SendMessageDto = exports.CreateGroupConversationDto = exports.CreateDirectConversationDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateDirectConversationDto {
     participantEmail;
@@ -141,4 +141,73 @@ class MessageResponseDto {
     replyTo;
 }
 exports.MessageResponseDto = MessageResponseDto;
+class RemoveParticipantsDto {
+    conversationId;
+    participantIds;
+}
+exports.RemoveParticipantsDto = RemoveParticipantsDto;
+__decorate([
+    (0, class_validator_1.IsMongoId)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], RemoveParticipantsDto.prototype, "conversationId", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsMongoId)({ each: true }),
+    __metadata("design:type", Array)
+], RemoveParticipantsDto.prototype, "participantIds", void 0);
+class DeleteMessagesDto {
+    conversationId;
+    messageIds;
+}
+exports.DeleteMessagesDto = DeleteMessagesDto;
+__decorate([
+    (0, class_validator_1.IsMongoId)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], DeleteMessagesDto.prototype, "conversationId", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsMongoId)({ each: true }),
+    __metadata("design:type", Array)
+], DeleteMessagesDto.prototype, "messageIds", void 0);
+class ClearChatDto {
+    conversationId;
+}
+exports.ClearChatDto = ClearChatDto;
+__decorate([
+    (0, class_validator_1.IsMongoId)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], ClearChatDto.prototype, "conversationId", void 0);
+class UpdateGroupDto {
+    conversationId;
+    name;
+    description;
+}
+exports.UpdateGroupDto = UpdateGroupDto;
+__decorate([
+    (0, class_validator_1.IsMongoId)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], UpdateGroupDto.prototype, "conversationId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateGroupDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateGroupDto.prototype, "description", void 0);
+class DeleteConversationDto {
+    conversationId;
+}
+exports.DeleteConversationDto = DeleteConversationDto;
+__decorate([
+    (0, class_validator_1.IsMongoId)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], DeleteConversationDto.prototype, "conversationId", void 0);
 //# sourceMappingURL=chat.dto.js.map

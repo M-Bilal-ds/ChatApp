@@ -145,7 +145,7 @@
         <button
           @click="createGroup"
           :disabled="!canCreate || isCreating"
-          class="px-4 hover:cursor-pointer py-2 bg-[#2c7da0] text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+          class="px-4 hover:cursor-pointer py-2 bg-[#2c7da0] text-white rounded-lg hover:bg-[#2a6f97] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
         >
           <span v-if="isCreating">
             <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

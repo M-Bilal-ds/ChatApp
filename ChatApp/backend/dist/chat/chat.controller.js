@@ -48,6 +48,24 @@ let ChatController = class ChatController {
     async markAsRead(req, markAsReadDto) {
         return this.chatService.markMessageAsRead(req.user.sub, markAsReadDto.conversationId, markAsReadDto.messageId);
     }
+    async removeParticipants(req, removeParticipantsDto) {
+        return this.chatService.removeParticipants(req.user.sub, removeParticipantsDto);
+    }
+    async deleteMessages(req, deleteMessagesDto) {
+        return this.chatService.deleteMessages(req.user.sub, deleteMessagesDto);
+    }
+    async clearChat(req, conversationId) {
+        return this.chatService.clearChat(req.user.sub, conversationId);
+    }
+    async updateGroup(req, updateGroupDto) {
+        return this.chatService.updateGroup(req.user.sub, updateGroupDto);
+    }
+    async deleteConversation(req, conversationId) {
+        return this.chatService.deleteConversation(req.user.sub, conversationId);
+    }
+    async getConversationDetails(req, conversationId) {
+        return this.chatService.getConversationDetails(req.user.sub, conversationId);
+    }
 };
 exports.ChatController = ChatController;
 __decorate([
@@ -120,6 +138,59 @@ __decorate([
     __metadata("design:paramtypes", [Object, chat_dto_1.MarkAsReadDto]),
     __metadata("design:returntype", Promise)
 ], ChatController.prototype, "markAsRead", null);
+__decorate([
+    (0, common_1.Delete)('conversations/participants'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, chat_dto_1.RemoveParticipantsDto]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "removeParticipants", null);
+__decorate([
+    (0, common_1.Delete)('messages'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, chat_dto_1.DeleteMessagesDto]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "deleteMessages", null);
+__decorate([
+    (0, common_1.Delete)('conversations/:id/clear'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "clearChat", null);
+__decorate([
+    (0, common_1.Patch)('conversations/group'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, chat_dto_1.UpdateGroupDto]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "updateGroup", null);
+__decorate([
+    (0, common_1.Delete)('conversations/:id'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "deleteConversation", null);
+__decorate([
+    (0, common_1.Get)('conversations/:id'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "getConversationDetails", null);
 exports.ChatController = ChatController = __decorate([
     (0, common_1.Controller)('chat'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

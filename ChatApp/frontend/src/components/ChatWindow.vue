@@ -48,13 +48,66 @@
             </svg>
           </button>
           
+          <div class="relative">
+            <button
+              @click="showOptionsMenu = !showOptionsMenu"
+              class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg hover:cursor-pointer transition-colors"
+              title="More options"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+              </svg>
+            </button>
+            
+            <!-- Options Menu Component -->
+            <ChatOptionsMenu
+  :conversation="conversation"
+  :currentUser="currentUser"
+  :isOpen="showOptionsMenu"
+  @close="handleOptionsMenuClose"
+  @clear-chat="handleClearChat"
+  @remove-participants="handleRemoveParticipants"
+  @update-group="handleUpdateGroup"
+  @delete-conversation="handleDeleteConversation"
+  @toggle-message-selection="toggleMessageSelection"
+/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Message Selection Bar -->
+    <div v-if="messageSelectionMode" class="bg-blue-50 border-b border-blue-200 p-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
           <button
-            class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg hover:cursor-pointer transition-colors"
-            title="More options"
+  @click.stop.prevent="toggleMessageSelection()"
+  class="text-blue-600 hover:text-blue-800"
+>
+  <svg class="w-5 h-5 hover:cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+</button>
+
+          <span class="text-blue-800 font-medium">
+            {{ selectedMessages.length }} message{{ selectedMessages.length !== 1 ? 's' : '' }} selected
+          </span>
+        </div>
+        
+        <div class="flex items-center space-x-2">
+          <button
+            v-if="selectedMessages.length > 0"
+            @click="selectAllMessages"
+            class="px-3 py-1 hover:cursor-pointer text-sm text-blue-600 hover:text-blue-800"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
-            </svg>
+            Select All
+          </button>
+          <button
+            v-if="selectedMessages.length > 0"
+            @click="deleteSelectedMessages"
+            class="px-3 py-1 hover:cursor-pointer bg-red-600 text-white text-sm rounded hover:bg-red-700"
+          >
+            Delete Selected
           </button>
         </div>
       </div>
@@ -82,6 +135,10 @@
           :currentUser="currentUser"
           :showAvatar="shouldShowAvatar(index)"
           :showTimestamp="shouldShowTimestamp(index)"
+          :selectionMode="messageSelectionMode"
+          :isSelected="selectedMessages.includes(message.id)"
+          :conversationType="conversation.type"
+          @toggle-selection="toggleMessageSelection(message.id)"
         />
         
         <!-- Typing indicator -->
@@ -97,7 +154,7 @@
     </div>
 
     <!-- Message Input -->
-    <div class="p-4 border-t border-gray-200 bg-white">
+    <div v-if="!messageSelectionMode" class="p-4 border-t border-gray-200 bg-white">
       <div class="flex items-end space-x-3">
         <div class="flex-1">
           <textarea
@@ -128,7 +185,10 @@
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted } from 'vue'
 import MessageItem from './MessageItem.vue'
+import ChatOptionsMenu from './ChatOptionsMenu.vue'
+import { chatApi } from '../services/api'
 import type { Conversation, Message, User } from '../types/chat'
+
 // Props
 const props = defineProps<{
   conversation: Conversation
@@ -145,12 +205,21 @@ const emit = defineEmits<{
   'typing-start': []
   'typing-stop': []
   'add-participants': []
+  'show-error': [message: string]
+  'show-success': [message: string]
+  'conversation-updated': [conversation: Conversation]
+  'conversation-deleted': []
+  'messages-updated': []
 }>()
 
 // State
 const messageText = ref('')
 const messagesContainer = ref<HTMLElement>()
 const messageInput = ref<HTMLTextAreaElement>()
+const showOptionsMenu = ref(false)
+const messageSelectionMode = ref(false)
+const selectedMessages = ref<string[]>([])
+
 let typingTimeout: ReturnType<typeof setTimeout> | null = null
 let isTyping = false
 
@@ -162,6 +231,9 @@ watch(() => props.messages.length, () => {
 // Watch for conversation changes
 watch(() => props.conversation.id, () => {
   messageText.value = ''
+  messageSelectionMode.value = false
+  selectedMessages.value = []
+  showOptionsMenu.value = false
   nextTick(() => {
     scrollToBottom()
     messageInput.value?.focus()
@@ -241,6 +313,131 @@ const scrollToBottom = () => {
   }
 }
 
+
+// Options menu handlers
+const handleClearChat = async () => {
+  try {
+    const result = await chatApi.clearChat(props.conversation.id)
+    emit('show-success', `Cleared ${result.clearedCount} messages`)
+    emit('messages-updated')
+  } catch (error: any) {
+    console.error('Failed to clear chat:', error)
+    emit('show-error', error.response?.data?.message || 'Failed to clear chat')
+  }
+}
+
+const handleOptionsMenuClose = () => {
+  console.log('handleOptionsMenuClose called')
+  showOptionsMenu.value = false
+}
+
+const handleRemoveParticipants = async (participantIds: string[]) => {
+  try {
+    const updatedConversation = await chatApi.removeParticipants(props.conversation.id, participantIds)
+    emit('show-success', `Removed ${participantIds.length} participant(s)`)
+    emit('conversation-updated', updatedConversation)
+  } catch (error: any) {
+    console.error('Failed to remove participants:', error)
+    emit('show-error', error.response?.data?.message || 'Failed to remove participants')
+  }
+}
+
+const handleUpdateGroup = async (name: string, description?: string) => {
+  try {
+    const updatedConversation = await chatApi.updateGroup(props.conversation.id, name, description)
+    emit('show-success', 'Group information updated successfully')
+    emit('conversation-updated', updatedConversation)
+  } catch (error: any) {
+    console.error('Failed to update group:', error)
+    emit('show-error', error.response?.data?.message || 'Failed to update group')
+  }
+}
+
+const handleDeleteConversation = async () => {
+  console.log('handleDeleteConversation called')
+  try {
+    const result = await chatApi.deleteConversation(props.conversation.id)
+    
+    if (result.reassigned) {
+      // Admin was reassigned, update the conversation instead of deleting
+      emit('show-success', result.message + '. Admin has been reassigned.')
+      if (result.updatedConversation) {
+        emit('conversation-updated', result.updatedConversation)
+      }
+    } else {
+      // Conversation was deleted or user left without reassignment
+      const actionText = props.conversation.type === 'group' ? 'Left group' : 'Deleted conversation'
+      emit('show-success', actionText + ' successfully')
+      emit('conversation-deleted')
+    }
+  } catch (error: any) {
+    console.error('Failed to delete conversation:', error)
+    emit('show-error', error.response?.data?.message || 'Failed to delete conversation')
+  }
+}
+
+// Message selection handlers
+const toggleMessageSelection = (messageId?: string) => {
+  if (messageId) {
+    // Toggle specific message
+    const index = selectedMessages.value.indexOf(messageId)
+    if (index > -1) {
+      selectedMessages.value.splice(index, 1)
+    } else {
+      // Only allow selecting user's own messages in groups
+      const message = props.messages.find(m => m.id === messageId)
+      if (message && (props.conversation.type === 'direct' || message.sender?.id === props.currentUser?.id)) {
+        selectedMessages.value.push(messageId)
+      }
+    }
+  } else {
+    // Toggle selection mode
+    messageSelectionMode.value = !messageSelectionMode.value
+    selectedMessages.value = []
+    showOptionsMenu.value = false
+  }
+}
+
+const selectAllMessages = () => {
+  // Select all user's own messages (or all messages in direct chat)
+  const selectableMessages = props.messages.filter(message => 
+    props.conversation.type === 'direct' || message.sender?.id === props.currentUser?.id
+  )
+  selectedMessages.value = selectableMessages.map(m => m.id)
+}
+
+const deleteSelectedMessages = async () => {
+  if (selectedMessages.value.length === 0) return
+  
+  try {
+    const result = await chatApi.deleteMessages(props.conversation.id, selectedMessages.value)
+    const deletedCount = result.deletedCount
+    const skippedCount = result.skippedCount
+    
+    let message = `Deleted ${deletedCount} message(s)`
+    if (skippedCount > 0) {
+      message += ` (${skippedCount} message(s) could not be deleted)`
+    }
+    
+    emit('show-success', message)
+    
+    // Remove deleted messages from local state immediately to prevent double-deletion
+    const messagesToDelete = selectedMessages.value
+    props.messages.splice(0, props.messages.length, ...props.messages.filter(m => !messagesToDelete.includes(m.id)))
+    
+    // Exit selection mode
+    messageSelectionMode.value = false
+    selectedMessages.value = []
+    
+    // Then refresh from server to ensure consistency
+    emit('messages-updated')
+  } catch (error: any) {
+    console.error('Failed to delete messages:', error)
+    emit('show-error', error.response?.data?.message || 'Failed to delete messages')
+  }
+}
+
+// Existing methods
 const getDisplayName = (): string => {
   if (props.conversation.type === 'group') {
     return props.conversation.name

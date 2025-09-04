@@ -68,7 +68,7 @@ let ChatGateway = class ChatGateway {
         try {
             const message = await this.chatService.sendMessage(client.userId, data);
             this.server
-                .to(`conversation:${data.conversationId}`)
+                .in(`conversation:${data.conversationId}`)
                 .emit('message:new', message);
             return { success: true, message };
         }
@@ -128,7 +128,7 @@ let ChatGateway = class ChatGateway {
         }
     }
     emitToConversation(conversationId, event, data) {
-        this.server.to(`conversation:${conversationId}`).emit(event, data);
+        this.server.in(`conversation:${conversationId}`).emit(event, data);
     }
 };
 exports.ChatGateway = ChatGateway;

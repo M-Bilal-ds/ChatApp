@@ -19,7 +19,13 @@ import {
   MessageResponseDto,
   UserResponseDto,
 } from './dto/chat.dto';
-
+import {
+  RemoveParticipantsDto,
+  DeleteMessagesDto,
+  ClearChatDto,
+  UpdateGroupDto,
+  DeleteConversationDto,
+} from './dto/chat.dto';
 @Injectable()
 export class ChatService {
   constructor(
@@ -707,4 +713,505 @@ async createGroupConversation(
       return false;
     }
   }
+  async removeParticipants(
+  userId: string,
+  removeParticipantsDto: RemoveParticipantsDto,
+): Promise<ConversationResponseDto> {
+  try {
+    const { conversationId, participantIds } = removeParticipantsDto;
+
+    if (!Types.ObjectId.isValid(conversationId)) {
+      throw new BadRequestException('Invalid conversation ID');
+    }
+
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+
+    if (!participantIds || participantIds.length === 0) {
+      throw new BadRequestException('At least one participant ID is required');
+    }
+
+    // Validate all participant IDs
+    const invalidIds = participantIds.filter(id => !Types.ObjectId.isValid(id));
+    if (invalidIds.length > 0) {
+      throw new BadRequestException('Invalid participant IDs provided');
+    }
+
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    if (conversation.type !== 'group') {
+      throw new BadRequestException('Can only remove participants from group conversations');
+    }
+
+    // Check if user is admin (creator of the group)
+    if (conversation.createdBy.toString() !== userId) {
+      throw new ForbiddenException('Only group admin can remove participants');
+    }
+
+    // Prevent admin from removing themselves
+    if (participantIds.includes(userId)) {
+      throw new BadRequestException('Admin cannot remove themselves from the group');
+    }
+
+    // Get usernames for system message before removal
+    const participantsToRemove = await this.userModel.find({
+      _id: { $in: participantIds.map(id => new Types.ObjectId(id)) }
+    });
+
+    const removedUsernames = participantsToRemove.map(p => p.username);
+
+    // Remove participants
+    conversation.participants = conversation.participants.filter(
+      (p) => !participantIds.some(id => p.toString() === id)
+    );
+
+    conversation.lastActivity = new Date();
+    await conversation.save();
+
+    // Create system message about removed participants
+    await this.createSystemMessage(
+      conversationId,
+      `${removedUsernames.join(', ')} ${
+        removedUsernames.length === 1 ? 'was' : 'were'
+      } removed from the group`,
+    );
+
+    const updatedConversation = await this.conversationModel
+      .findById(conversationId)
+      .populate('participants', 'email username isActive lastLogin')
+      .populate({
+        path: 'lastMessage',
+        populate: { path: 'sender', select: 'email username' },
+      });
+
+    if (!updatedConversation) {
+      throw new InternalServerErrorException('Failed to retrieve updated conversation');
+    }
+
+    return this.formatConversationResponse(updatedConversation);
+  } catch (error) {
+    console.error('Error removing participants:', error);
+    if (error instanceof BadRequestException || 
+        error instanceof NotFoundException || 
+        error instanceof ForbiddenException) {
+      throw error;
+    }
+    throw new InternalServerErrorException('Failed to remove participants');
+  }
+}
+
+// Delete selected messages (users can only delete their own messages)
+async deleteMessages(
+  userId: string,
+  deleteMessagesDto: DeleteMessagesDto,
+): Promise<{ deletedCount: number; skippedCount: number }> {
+  try {
+    const { conversationId, messageIds } = deleteMessagesDto;
+
+    if (!Types.ObjectId.isValid(conversationId)) {
+      throw new BadRequestException('Invalid conversation ID');
+    }
+
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+
+    if (!messageIds || messageIds.length === 0) {
+      throw new BadRequestException('At least one message ID is required');
+    }
+
+    const invalidIds = messageIds.filter(id => !Types.ObjectId.isValid(id));
+    if (invalidIds.length > 0) {
+      throw new BadRequestException('Invalid message IDs provided');
+    }
+
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    if (!conversation.participants.some((p) => p.toString() === userId)) {
+      throw new ForbiddenException('You are not a participant in this conversation');
+    }
+
+    const isAdmin = conversation.type === 'group' && conversation.createdBy.toString() === userId;
+
+    // Find requested messages
+    const messages = await this.messageModel.find({
+      _id: { $in: messageIds.map(id => new Types.ObjectId(id)) },
+      conversationId: new Types.ObjectId(conversationId),
+    });
+
+    if (messages.length === 0) {
+  return {
+    deletedCount: 0,
+    skippedCount: messageIds.length
+  };
+}
+
+    let deletableMessages;
+
+    if (isAdmin) {
+      // Admin can delete all
+      deletableMessages = messages;
+    } else {
+      // Normal user: only their own
+      deletableMessages = messages.filter(msg => msg.sender?.toString() === userId);
+    }
+
+    const skippedCount = messageIds.length - deletableMessages.length;
+
+    if (deletableMessages.length === 0) {
+  return {
+    deletedCount: 0,
+    skippedCount: messageIds.length
+  };
+}
+
+    await this.messageModel.deleteMany({
+      _id: { $in: deletableMessages.map(msg => msg._id) }
+    });
+
+    // If last message was deleted, update conversation
+    const lastMessageDeleted = deletableMessages.some(msg => 
+      msg._id.toString() === conversation.lastMessage?.toString()
+    );
+
+    if (lastMessageDeleted) {
+      const newLastMessage = await this.messageModel
+        .findOne({ conversationId: new Types.ObjectId(conversationId) })
+        .sort({ createdAt: -1 });
+
+      await this.conversationModel.findByIdAndUpdate(conversationId, {
+        lastMessage: newLastMessage?._id || null,
+        lastActivity: new Date(),
+      });
+    }
+
+    return {
+      deletedCount: deletableMessages.length,
+      skippedCount,
+    };
+  } catch (error) {
+    console.error('Error deleting messages:', error);
+    if (
+      error instanceof BadRequestException ||
+      error instanceof NotFoundException ||
+      error instanceof ForbiddenException
+    ) {
+      throw error;
+    }
+    throw new InternalServerErrorException('Failed to delete messages');
+  }
+}
+
+// Clear chat history (admin only for groups, anyone for direct chats)
+async clearChat(userId: string, conversationId: string): Promise<{ clearedCount: number }> {
+  try {
+    if (!Types.ObjectId.isValid(conversationId)) {
+      throw new BadRequestException('Invalid conversation ID');
+    }
+
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    if (!conversation.participants.some((p) => p.toString() === userId)) {
+      throw new ForbiddenException('You are not a participant in this conversation');
+    }
+
+    // For group chats, only admin can clear chat
+    if (conversation.type === 'group' && conversation.createdBy.toString() !== userId) {
+      throw new ForbiddenException('Only group admin can clear chat history');
+    }
+
+    // Count messages before deletion
+    const messageCount = await this.messageModel.countDocuments({
+      conversationId: new Types.ObjectId(conversationId)
+    });
+
+    // Delete all messages in the conversation
+    await this.messageModel.deleteMany({
+      conversationId: new Types.ObjectId(conversationId)
+    });
+
+    // Update conversation to remove lastMessage reference
+    await this.conversationModel.findByIdAndUpdate(conversationId, {
+      lastMessage: null,
+      lastActivity: new Date(),
+    });
+
+    // Create system message about chat being cleared
+    await this.createSystemMessage(
+      conversationId,
+      conversation.type === 'group' 
+        ? 'Chat history was cleared by admin'
+        : 'Chat history was cleared'
+    );
+
+    return { clearedCount: messageCount };
+  } catch (error) {
+    console.error('Error clearing chat:', error);
+    if (error instanceof BadRequestException || 
+        error instanceof NotFoundException || 
+        error instanceof ForbiddenException) {
+      throw error;
+    }
+    throw new InternalServerErrorException('Failed to clear chat');
+  }
+}
+
+// Update group name/description (admin only)
+async updateGroup(
+  userId: string,
+  updateGroupDto: UpdateGroupDto,
+): Promise<ConversationResponseDto> {
+  try {
+    const { conversationId, name, description } = updateGroupDto;
+
+    if (!Types.ObjectId.isValid(conversationId)) {
+      throw new BadRequestException('Invalid conversation ID');
+    }
+
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+
+    if (!name && description === undefined) {
+      throw new BadRequestException('At least name or description must be provided');
+    }
+
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    if (conversation.type !== 'group') {
+      throw new BadRequestException('Can only update group conversations');
+    }
+
+    // Check if user is admin (creator of the group)
+    if (conversation.createdBy.toString() !== userId) {
+      throw new ForbiddenException('Only group admin can update group details');
+    }
+
+    const updates: any = { lastActivity: new Date() };
+    let systemMessages: string[] = [];
+
+    if (name && name.trim() && name.trim() !== conversation.name) {
+      const oldName = conversation.name;
+      updates.name = name.trim();
+      systemMessages.push(`Group name changed from "${oldName}" to "${name.trim()}"`);
+    }
+
+    if (description !== undefined && description !== conversation.description) {
+      updates.description = description?.trim() || undefined;
+      if (description?.trim()) {
+        systemMessages.push(`Group description updated`);
+      } else {
+        systemMessages.push(`Group description removed`);
+      }
+    }
+
+    if (Object.keys(updates).length === 1) { // Only lastActivity was added
+      throw new BadRequestException('No changes detected');
+    }
+
+    // Update the conversation
+    await this.conversationModel.findByIdAndUpdate(conversationId, updates);
+
+    // Create system messages for changes
+    for (const message of systemMessages) {
+      await this.createSystemMessage(conversationId, message);
+    }
+
+    const updatedConversation = await this.conversationModel
+      .findById(conversationId)
+      .populate('participants', 'email username isActive lastLogin')
+      .populate({
+        path: 'lastMessage',
+        populate: { path: 'sender', select: 'email username' },
+      });
+
+    if (!updatedConversation) {
+      throw new InternalServerErrorException('Failed to retrieve updated conversation');
+    }
+
+    return this.formatConversationResponse(updatedConversation);
+  } catch (error) {
+    console.error('Error updating group:', error);
+    if (error instanceof BadRequestException || 
+        error instanceof NotFoundException || 
+        error instanceof ForbiddenException) {
+      throw error;
+    }
+    throw new InternalServerErrorException('Failed to update group');
+  }
+}
+
+// Delete/Leave conversation
+async deleteConversation(userId: string, conversationId: string): Promise<{ message: string; reassigned?: boolean; newAdmin?: string; updatedConversation?: any }> {
+  try {
+    if (!Types.ObjectId.isValid(conversationId)) {
+      throw new BadRequestException('Invalid conversation ID');
+    }
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+    
+    const conversation = await this.conversationModel.findById(conversationId).populate('participants');
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+    
+    if (!conversation.participants.some((p: any) => p._id.toString() === userId)) {
+      throw new ForbiddenException('You are not a participant in this conversation');
+    }
+    
+    if (conversation.type === 'direct') {
+      // For direct conversations, completely delete the conversation and all messages
+      await this.messageModel.deleteMany({
+        conversationId: new Types.ObjectId(conversationId)
+      });
+      await this.conversationModel.findByIdAndDelete(conversationId);
+      
+      return { message: 'Conversation deleted successfully' };
+    } else {
+      // For group conversations
+      const isAdmin = conversation.createdBy.toString() === userId;
+      const remainingParticipants = conversation.participants.filter(
+        (p: any) => p._id.toString() !== userId
+      );
+      
+      // If no participants left, delete the group
+      if (remainingParticipants.length === 0) {
+        await this.messageModel.deleteMany({
+          conversationId: new Types.ObjectId(conversationId)
+        });
+        await this.conversationModel.findByIdAndDelete(conversationId);
+        
+        return { message: 'Group deleted successfully' };
+      }
+      
+      // If admin is leaving and there are other participants, reassign admin
+      if (isAdmin) {
+        // Select the first remaining participant as new admin
+        const newAdminId = remainingParticipants[0]._id || remainingParticipants[0];
+        const newAdmin = await this.userModel.findById(newAdminId);
+        const leavingUser = await this.userModel.findById(userId);
+        
+        // Update conversation
+        conversation.participants = remainingParticipants.map((p: any) => p._id || p);
+        conversation.createdBy = newAdminId;
+        conversation.lastActivity = new Date();
+        const updatedConversation = await conversation.save();
+        
+        // Create system messages
+        await this.createSystemMessage(
+          conversationId,
+          `${leavingUser?.username || 'User'} left the group`
+        );
+        await this.createSystemMessage(
+          conversationId,
+          `${newAdmin?.username || 'User'} is now the group admin`
+        );
+        
+        // Populate the updated conversation before returning
+        const populatedConversation = await this.conversationModel
+          .findById(conversationId)
+          .populate('participants')
+          .populate('createdBy');
+        
+        return { 
+          message: 'Left group successfully', 
+          reassigned: true,
+          newAdmin: newAdminId.toString(),
+          updatedConversation: populatedConversation
+        };
+      } else {
+        // Non-admin leaving group
+        const user = await this.userModel.findById(userId);
+        
+        conversation.participants = remainingParticipants.map((p: any) => p._id || p);
+        conversation.lastActivity = new Date();
+        await conversation.save();
+        
+        // Create system message about user leaving
+        await this.createSystemMessage(
+          conversationId,
+          `${user?.username || 'User'} left the group`
+        );
+        
+        return { message: 'Left group successfully' };
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    if (error instanceof BadRequestException || 
+        error instanceof NotFoundException || 
+        error instanceof ForbiddenException) {
+      throw error;
+    }
+    throw new InternalServerErrorException('Failed to delete conversation');
+  }
+}
+
+// Get conversation details (useful for checking permissions on frontend)
+async getConversationDetails(
+  userId: string,
+  conversationId: string,
+): Promise<ConversationResponseDto & { isAdmin: boolean; canManage: boolean }> {
+  try {
+    if (!Types.ObjectId.isValid(conversationId)) {
+      throw new BadRequestException('Invalid conversation ID');
+    }
+
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+
+    const conversation = await this.conversationModel
+      .findById(conversationId)
+      .populate('participants', 'email username isActive lastLogin')
+      .populate({
+        path: 'lastMessage',
+        populate: { path: 'sender', select: 'email username' },
+      });
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    if (!conversation.participants.some((p: any) => p._id.toString() === userId)) {
+      throw new ForbiddenException('You are not a participant in this conversation');
+    }
+
+    const isAdmin = conversation.type === 'group' && conversation.createdBy.toString() === userId;
+    const canManage = conversation.type === 'direct' || isAdmin;
+
+    return {
+      ...this.formatConversationResponse(conversation),
+      isAdmin,
+      canManage,
+    };
+  } catch (error) {
+    console.error('Error getting conversation details:', error);
+    if (error instanceof BadRequestException || 
+        error instanceof NotFoundException || 
+        error instanceof ForbiddenException) {
+      throw error;
+    }
+    throw new InternalServerErrorException('Failed to get conversation details');
+  }
+}
+
 }

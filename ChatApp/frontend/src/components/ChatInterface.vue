@@ -15,18 +15,24 @@
     <!-- Main Chat Area -->
     <div class="flex-1 flex flex-col">
       <ChatWindow
-        v-if="selectedConversation"
-        :conversation="selectedConversation"
-        :messages="messages"
-        :currentUser="currentUser"
-        :loading="messagesLoading"
-        :typingUsers="typingUsersMap"
-        :onlineUsers="onlineUsers"
-        @send-message="sendMessage"
-        @typing-start="handleTypingStart"
-        @typing-stop="handleTypingStop"
-        @add-participants="showAddParticipantsModal = true"
-      />
+  v-if="selectedConversation"
+  :conversation="selectedConversation"
+  :messages="messages"
+  :currentUser="currentUser"
+  :loading="messagesLoading"
+  :typingUsers="typingUsersMap"
+  :onlineUsers="onlineUsers"
+  @send-message="sendMessage"
+  @typing-start="handleTypingStart"
+  @typing-stop="handleTypingStop"
+  @add-participants="showAddParticipantsModal = true"
+  @messages-updated="handleMessagesUpdated"
+  @show-error="showError"
+  @show-success="showSuccess"
+  @conversation-updated="handleConversationUpdated"
+  @conversation-deleted="handleConversationDeleted"
+/>
+
 
       <!-- Empty state -->
       <div v-else class="flex-1 flex items-center justify-center bg-white">
@@ -265,6 +271,41 @@ onMounted(async () => {
   }
 })
 
+// Add these two missing handlers to your ChatInterface.vue
+
+function handleConversationDeleted() {
+   console.log('handleConversationDeleted called')
+  if (!selectedConversation.value) return
+  
+  const conversationId = selectedConversation.value.id
+  
+  // Leave socket room
+  if (socket) {
+    socket.emit('conversation:leave', { conversationId })
+  }
+  
+  // Remove from conversations list
+  const index = conversations.value.findIndex(c => c.id === conversationId)
+  if (index !== -1) {
+    conversations.value.splice(index, 1)
+  }
+  
+  // Clear selection
+  selectedConversation.value = null
+  messages.value = []
+}
+
+function handleConversationUpdated(updatedConversation: Conversation) {
+  // Update the selected conversation
+  selectedConversation.value = updatedConversation
+  
+  // Update in conversations list
+  const index = conversations.value.findIndex(c => c.id === updatedConversation.id)
+  if (index !== -1) {
+    conversations.value[index] = updatedConversation
+  }
+}
+
 onUnmounted(() => {
   if (socket) {
     socket.disconnect()
@@ -500,6 +541,12 @@ function handleTypingStop() {
   }
 }
 
+async function handleMessagesUpdated() {
+  if (selectedConversation.value) {
+    await selectConversation(selectedConversation.value) // re-fetch messages
+  }
+}
+
 /* -----------------------------
    Conversation Management
    ----------------------------- */
@@ -706,6 +753,8 @@ function handleLogout() {
   } catch (error) {
     console.error('Error during logout:', error)
   }
+
+  
 }
 </script>
 

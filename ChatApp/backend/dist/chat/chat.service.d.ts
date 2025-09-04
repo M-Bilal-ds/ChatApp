@@ -3,6 +3,7 @@ import { ConversationDocument } from '../schemas/chat.schema';
 import { MessageDocument } from '../schemas/chat.schema';
 import { UserDocument } from '../schemas/user.schema';
 import { CreateDirectConversationDto, CreateGroupConversationDto, SendMessageDto, AddParticipantsDto, ConversationResponseDto, MessageResponseDto, UserResponseDto } from './dto/chat.dto';
+import { RemoveParticipantsDto, DeleteMessagesDto, UpdateGroupDto } from './dto/chat.dto';
 export declare class ChatService {
     private conversationModel;
     private messageModel;
@@ -23,4 +24,23 @@ export declare class ChatService {
     private formatUserResponse;
     validateUserExists(userId: string): Promise<boolean>;
     validateConversationAccess(userId: string, conversationId: string): Promise<boolean>;
+    removeParticipants(userId: string, removeParticipantsDto: RemoveParticipantsDto): Promise<ConversationResponseDto>;
+    deleteMessages(userId: string, deleteMessagesDto: DeleteMessagesDto): Promise<{
+        deletedCount: number;
+        skippedCount: number;
+    }>;
+    clearChat(userId: string, conversationId: string): Promise<{
+        clearedCount: number;
+    }>;
+    updateGroup(userId: string, updateGroupDto: UpdateGroupDto): Promise<ConversationResponseDto>;
+    deleteConversation(userId: string, conversationId: string): Promise<{
+        message: string;
+        reassigned?: boolean;
+        newAdmin?: string;
+        updatedConversation?: any;
+    }>;
+    getConversationDetails(userId: string, conversationId: string): Promise<ConversationResponseDto & {
+        isAdmin: boolean;
+        canManage: boolean;
+    }>;
 }

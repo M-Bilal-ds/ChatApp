@@ -1,11 +1,32 @@
 <template>
   <div
-    class="flex items-start space-x-3"
+    class="flex items-start space-x-3 group relative"
     :class="{
       'justify-end': isOwnMessage && !isSystemMessage,
-      'justify-center': isSystemMessage
+      'justify-center': isSystemMessage,
+      'bg-blue-50': isSelected,
+      'hover:bg-gray-50': selectionMode && !isSelected && !isSystemMessage && canSelect,
+      'cursor-pointer': selectionMode && !isSystemMessage && canSelect
     }"
+    @click="handleMessageClick"
   >
+    <!-- Selection checkbox -->
+    <div v-if="selectionMode && !isSystemMessage && canSelect" class="flex-shrink-0 mt-2">
+      <div
+        class="w-5 h-5 rounded border-2 flex items-center justify-center"
+        :class="isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'"
+      >
+        <svg
+          v-if="isSelected"
+          class="w-3 h-3 text-white"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+        </svg>
+      </div>
+    </div>
+
     <!-- System message -->
     <div v-if="isSystemMessage" class="text-center">
       <div class="inline-block bg-gray-100 text-gray-600 text-sm px-3 py-1 rounded-full">
@@ -26,7 +47,7 @@
           {{ message.sender?.username.charAt(0).toUpperCase() }}
         </div>
       </div>
-      <div v-else-if="!isOwnMessage" class="w-8 flex-shrink-0"></div>
+      <div v-else-if="!isOwnMessage && !selectionMode" class="w-8 flex-shrink-0"></div>
 
       <!-- Message content -->
       <div
@@ -63,10 +84,11 @@
 
         <!-- Message bubble -->
         <div
-          class="px-4 py-2 rounded-lg"
+          class="px-4 py-2 rounded-lg relative"
           :class="{
             'bg-[#01497c] text-white': isOwnMessage,
-            'bg-[#2c7da0] text-white': !isOwnMessage
+            'bg-[#2c7da0] text-white': !isOwnMessage,
+            'ring-2 ring-blue-500': isSelected
           }"
         >
           <div class="whitespace-pre-wrap break-words">
@@ -113,7 +135,7 @@
       </div>
 
       <!-- Avatar placeholder for own messages -->
-      <div v-if="isOwnMessage" class="w-8 flex-shrink-0"></div>
+      <div v-if="isOwnMessage && !selectionMode" class="w-8 flex-shrink-0"></div>
     </template>
   </div>
 </template>
@@ -121,12 +143,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { User, Message } from '../types/chat'
+
 // Props
 const props = defineProps<{
   message: Message
   currentUser: User | null
   showAvatar: boolean
   showTimestamp: boolean
+  selectionMode?: boolean
+  isSelected?: boolean
+  conversationType?: 'direct' | 'group'
+}>()
+
+// Emits
+const emit = defineEmits<{
+  'toggle-selection': [messageId: string]
 }>()
 
 // Computed
@@ -138,7 +169,21 @@ const isSystemMessage = computed(() => {
   return props.message.type === 'system' || props.message.sender === null
 })
 
+const canSelect = computed(() => {
+  if (isSystemMessage.value) return false
+  
+  // In direct chats, users can select any message
+  // In group chats, users can only select their own messages
+  return props.conversationType === 'direct' || isOwnMessage.value
+})
+
 // Methods
+const handleMessageClick = () => {
+  if (props.selectionMode && canSelect.value) {
+    emit('toggle-selection', props.message.id)
+  }
+}
+
 const formatTime = (date: Date | string): string => {
   const messageDate = new Date(date)
   const now = new Date()

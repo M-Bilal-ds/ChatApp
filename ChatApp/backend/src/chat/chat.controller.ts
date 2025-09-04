@@ -1,3 +1,6 @@
+
+// Add these new endpoints to your existing ChatController class
+
 import {
   Controller,
   Get,
@@ -9,6 +12,8 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Delete,
+  Patch,
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -19,9 +24,12 @@ import {
   AddParticipantsDto,
   SearchUsersDto,
   MarkAsReadDto,
+  RemoveParticipantsDto,
+  DeleteMessagesDto,
+  ClearChatDto,
+  UpdateGroupDto,
+  DeleteConversationDto,
 } from './dto/chat.dto';
-import { fileURLToPath } from 'url';
-import { error } from 'console';
 
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
@@ -102,5 +110,63 @@ export class ChatController {
       markAsReadDto.conversationId,
       markAsReadDto.messageId,
     );
+  }
+
+  @Delete('conversations/participants')
+  @HttpCode(HttpStatus.OK)
+  async removeParticipants(
+    @Request() req,
+    @Body() removeParticipantsDto: RemoveParticipantsDto,
+  ) {
+    return this.chatService.removeParticipants(req.user.sub, removeParticipantsDto);
+  }
+
+  // Delete selected messages (users can only delete their own messages)
+  @Delete('messages')
+  @HttpCode(HttpStatus.OK)
+  async deleteMessages(
+    @Request() req,
+    @Body() deleteMessagesDto: DeleteMessagesDto,
+  ) {
+    return this.chatService.deleteMessages(req.user.sub, deleteMessagesDto);
+  }
+
+  // Clear chat history (admin only for groups)
+  @Delete('conversations/:id/clear')
+  @HttpCode(HttpStatus.OK)
+  async clearChat(
+    @Request() req,
+    @Param('id') conversationId: string,
+  ) {
+    return this.chatService.clearChat(req.user.sub, conversationId);
+  }
+
+  // Update group name/description (admin only)
+  @Patch('conversations/group')
+  @HttpCode(HttpStatus.OK)
+  async updateGroup(
+    @Request() req,
+    @Body() updateGroupDto: UpdateGroupDto,
+  ) {
+    return this.chatService.updateGroup(req.user.sub, updateGroupDto);
+  }
+
+  // Delete/Leave conversation
+  @Delete('conversations/:id')
+  @HttpCode(HttpStatus.OK)
+  async deleteConversation(
+    @Request() req,
+    @Param('id') conversationId: string,
+  ) {
+    return this.chatService.deleteConversation(req.user.sub, conversationId);
+  }
+
+  // Get conversation details (useful for checking admin permissions on frontend)
+  @Get('conversations/:id')
+  async getConversationDetails(
+    @Request() req,
+    @Param('id') conversationId: string,
+  ) {
+    return this.chatService.getConversationDetails(req.user.sub, conversationId);
   }
 }

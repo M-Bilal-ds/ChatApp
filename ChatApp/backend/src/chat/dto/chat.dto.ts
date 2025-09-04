@@ -99,3 +99,51 @@ export class MessageResponseDto {
   readBy: { user: string; readAt: Date }[];
   replyTo?: MessageResponseDto;
 }
+
+// Add these new DTOs to your existing chat.dto.ts file
+
+export class RemoveParticipantsDto {
+  @IsMongoId()
+  @IsNotEmpty()
+  conversationId: string;
+
+  @IsArray()
+  @IsMongoId({ each: true })
+  participantIds: string[];
+}
+
+export class DeleteMessagesDto {
+  @IsMongoId()
+  @IsNotEmpty()
+  conversationId: string;
+
+  @IsArray()
+  @IsMongoId({ each: true })
+  messageIds: string[];
+}
+
+export class ClearChatDto {
+  @IsMongoId()
+  @IsNotEmpty()
+  conversationId: string;
+}
+
+export class UpdateGroupDto {
+  @IsMongoId()
+  @IsNotEmpty()
+  conversationId: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
+export class DeleteConversationDto {
+  @IsMongoId()
+  @IsNotEmpty()
+  conversationId: string;
+}
