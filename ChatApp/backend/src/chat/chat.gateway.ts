@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
+import { forwardRef, Inject } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/chat.dto';
 
@@ -31,6 +32,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(
     private jwtService: JwtService,
+    @Inject(forwardRef(() => ChatService))
     private chatService: ChatService,
   ) {}
 
@@ -190,6 +192,51 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return { success: false, error: error.message };
     }
   }
+
+  @SubscribeMessage('message:delete')
+  async handleDeleteMessage(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { conversationId: string; messageIds: string[] },
+  ) {
+    try {
+      const result = await this.chatService.deleteMessages(client.userId!, {
+        conversationId: data.conversationId,
+        messageIds: data.messageIds,
+      });
+
+      // Emit deletion event to ALL participants in the conversation
+      this.server
+        .in(`conversation:${data.conversationId}`)
+        .emit('message:deleted', {
+          conversationId: data.conversationId,
+          messageIds: data.messageIds,
+          deletedBy: client.userId,
+          deletedCount: result.deletedCount,
+          skippedCount: result.skippedCount,
+        });
+
+      return { success: true, ...result };
+    } catch (error) {
+      client.emit('error', { message: error.message });
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Helper method to emit deletion events when messages are deleted via REST API
+
+// Also add this helper method that your chat.service can call
+// Add this method to emit deletion events when messages are deleted via REST API
+emitMessageDeleted(conversationId: string, messageIds: string[], deletedBy: string, result: { deletedCount: number; skippedCount: number }) {
+  this.server
+    .in(`conversation:${conversationId}`)
+    .emit('message:deleted', {
+      conversationId,
+      messageIds,
+      deletedBy,
+      deletedCount: result.deletedCount,
+      skippedCount: result.skippedCount,
+    });
+}
 
   // Helper method to emit to specific user
   emitToUser(userId: string, event: string, data: any) {

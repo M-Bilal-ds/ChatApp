@@ -137,6 +137,7 @@
           :showTimestamp="shouldShowTimestamp(index)"
           :selectionMode="messageSelectionMode"
           :isSelected="selectedMessages.includes(message.id)"
+          :isAdmin="isGroupAdmin"
           :conversationType="conversation.type"
           @toggle-selection="toggleMessageSelection(message.id)"
         />
@@ -183,12 +184,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch, onMounted } from 'vue'
+import { ref, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import MessageItem from './MessageItem.vue'
 import ChatOptionsMenu from './ChatOptionsMenu.vue'
 import { chatApi } from '../services/api'
-import type { Conversation, Message, User } from '../types/chat'
+import type { Conversation, Message, User, MessageDeletedData } from '../types/chat'
+import { inject, computed } from 'vue'
 
+const socket = inject('socket') as any
 // Props
 const props = defineProps<{
   conversation: Conversation
@@ -198,6 +201,12 @@ const props = defineProps<{
   typingUsers: Map<string, string>
   onlineUsers?: Set<string>
 }>()
+
+const isGroupAdmin = computed(() => {
+  if (props.conversation.type !== 'group') return false
+  if (!props.currentUser) return false
+  return props.conversation.createdBy === props.currentUser.id
+})
 
 // Emits
 const emit = defineEmits<{
@@ -219,6 +228,9 @@ const messageInput = ref<HTMLTextAreaElement>()
 const showOptionsMenu = ref(false)
 const messageSelectionMode = ref(false)
 const selectedMessages = ref<string[]>([])
+
+
+
 
 let typingTimeout: ReturnType<typeof setTimeout> | null = null
 let isTyping = false
@@ -242,6 +254,30 @@ watch(() => props.conversation.id, () => {
 
 onMounted(() => {
   messageInput.value?.focus()
+  socket?.on('message:deleted', (data: MessageDeletedData) => {
+    console.log('Received message deletion event:', data)
+    
+    // Remove deleted messages from local state immediately
+    const messagesToRemove = data.messageIds
+    props.messages.splice(0, props.messages.length, 
+      ...props.messages.filter(m => !messagesToRemove.includes(m.id))
+    )
+    
+    // If we're in selection mode and deleted messages were selected, remove them from selection
+    if (messageSelectionMode.value) {
+      selectedMessages.value = selectedMessages.value.filter(id => !messagesToRemove.includes(id))
+    }
+    
+    // Show notification if someone else deleted messages
+    if (data.deletedBy !== props.currentUser?.id) {
+      emit('show-success', `${data.deletedCount} message(s) were deleted`)
+    }
+  })
+})
+
+// Clean up in onUnmounted
+onUnmounted(() => {
+  socket?.off('message:deleted')
 })
 
 // Methods
@@ -379,24 +415,31 @@ const handleDeleteConversation = async () => {
 // Message selection handlers
 const toggleMessageSelection = (messageId?: string) => {
   if (messageId) {
-    // Toggle specific message
     const index = selectedMessages.value.indexOf(messageId)
     if (index > -1) {
       selectedMessages.value.splice(index, 1)
     } else {
-      // Only allow selecting user's own messages in groups
       const message = props.messages.find(m => m.id === messageId)
-      if (message && (props.conversation.type === 'direct' || message.sender?.id === props.currentUser?.id)) {
-        selectedMessages.value.push(messageId)
+      if (!message) return
+
+      if (props.conversation.type === 'direct') {
+        if (message.sender?.id === props.currentUser?.id) {
+          selectedMessages.value.push(messageId)
+        }
+      } else if (props.conversation.type === 'group') {
+        if (isGroupAdmin.value || message.sender?.id === props.currentUser?.id) {
+          selectedMessages.value.push(messageId)
+        }
       }
     }
   } else {
-    // Toggle selection mode
     messageSelectionMode.value = !messageSelectionMode.value
     selectedMessages.value = []
     showOptionsMenu.value = false
   }
 }
+
+
 
 const selectAllMessages = () => {
   // Select all user's own messages (or all messages in direct chat)

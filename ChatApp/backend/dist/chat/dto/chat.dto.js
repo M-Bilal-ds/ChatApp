@@ -125,6 +125,7 @@ class ConversationResponseDto {
     lastActivity;
     description;
     avatar;
+    isAdmin;
     unreadCount;
 }
 exports.ConversationResponseDto = ConversationResponseDto;
@@ -136,6 +137,7 @@ class MessageResponseDto {
     type;
     createdAt;
     edited;
+    isAdmin;
     editedAt;
     readBy;
     replyTo;

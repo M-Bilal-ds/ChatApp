@@ -16,6 +16,7 @@ export interface Conversation {
   lastActivity: Date
   description?: string
   avatar?: string
+  isAdmin?: boolean
   unreadCount?: number
 }
 
@@ -48,6 +49,15 @@ export interface SendMessageDto {
   content: string
   type?: string
   replyTo?: string
+}
+
+// In types/chat.ts
+export interface MessageDeletedData {
+  conversationId: string
+  messageIds: string[]
+  deletedBy: string
+  deletedCount: number
+  skippedCount: number
 }
 
 export interface SocketEvents {

@@ -83,6 +83,7 @@ export class ConversationResponseDto {
   lastActivity: Date;
   description?: string;
   avatar?: string;
+  isAdmin?: boolean;
   unreadCount?: number;
 }
 
@@ -95,6 +96,7 @@ export class MessageResponseDto {
   type: string;
   createdAt: Date;
   edited: boolean;
+  isAdmin?: boolean;
   editedAt?: Date;
   readBy: { user: string; readAt: Date }[];
   replyTo?: MessageResponseDto;

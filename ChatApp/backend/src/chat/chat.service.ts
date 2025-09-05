@@ -26,6 +26,9 @@ import {
   UpdateGroupDto,
   DeleteConversationDto,
 } from './dto/chat.dto';
+import { forwardRef, Inject } from '@nestjs/common';
+import { ChatGateway } from './chat.gateway';
+
 @Injectable()
 export class ChatService {
   constructor(
@@ -35,6 +38,8 @@ export class ChatService {
     private messageModel: Model<MessageDocument>,
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
+    @Inject(forwardRef(() => ChatGateway))
+    private chatGateway: ChatGateway,
   ) {}
 
   // Create direct conversation
@@ -105,7 +110,7 @@ export class ChatService {
         throw new InternalServerErrorException('Failed to retrieve created conversation');
       }
 
-      return this.formatConversationResponse(populatedConversation);
+      return this.formatConversationResponse(populatedConversation, userId);
     } catch (error) {
       console.error('Error creating direct conversation:', error);
       if (error instanceof BadRequestException || 
@@ -193,7 +198,7 @@ async createGroupConversation(
       `Group "${name.trim()}" was created`
     );
 
-    return this.formatConversationResponse(populatedConversation);
+    return this.formatConversationResponse(populatedConversation, userId);
   } catch (error) {
     console.error('Error creating group conversation:', error);
     if (error instanceof BadRequestException || 
@@ -221,7 +226,7 @@ async createGroupConversation(
         })
         .sort({ lastActivity: -1 });
 
-      return conversations.map((conv) => this.formatConversationResponse(conv));
+      return conversations.map((conv) => this.formatConversationResponse(conv, userId));
     } catch (error) {
       console.error('Error getting user conversations:', error);
       if (error instanceof BadRequestException) {
@@ -618,29 +623,33 @@ async createGroupConversation(
   }
 
   // Formatters with better error handling
-  private formatConversationResponse(conversation: any): ConversationResponseDto {
-    try {
-      return {
-        id: conversation._id?.toString() ?? '',
-        name: conversation.name ?? '',
-        type: conversation.type ?? 'direct',
-        participants: (conversation.participants ?? [])
-          .map((p: any) => this.formatUserResponse(p))
-          .filter(Boolean),
-        createdBy: conversation.createdBy?.toString() ?? '',
-        lastMessage: conversation.lastMessage
-          ? this.formatMessageResponse(conversation.lastMessage)
-          : undefined,
-        lastActivity: conversation.lastActivity ?? new Date(),
-        description: conversation.description ?? undefined,
-        avatar: conversation.avatar ?? undefined,
-      };
-    } catch (error) {
-      console.error('Error formatting conversation response:', error);
-      throw new InternalServerErrorException('Failed to format conversation data');
-    }
-  }
+  private formatConversationResponse(conversation: any, currentUserId?: string): ConversationResponseDto {
+  try {
+    const isAdmin =
+      conversation.type === 'group' &&
+      conversation.createdBy?.toString() === currentUserId;
 
+    return {
+      id: conversation._id?.toString() ?? '',
+      name: conversation.name ?? '',
+      type: conversation.type ?? 'direct',
+      participants: (conversation.participants ?? [])
+        .map((p: any) => this.formatUserResponse(p))
+        .filter(Boolean),
+      createdBy: conversation.createdBy?.toString() ?? '',
+      lastMessage: conversation.lastMessage
+        ? this.formatMessageResponse(conversation.lastMessage)
+        : undefined,
+      lastActivity: conversation.lastActivity ?? new Date(),
+      description: conversation.description ?? undefined,
+      avatar: conversation.avatar ?? undefined,
+      isAdmin, // 🔥 add this
+    };
+  } catch (error) {
+    console.error('Error formatting conversation response:', error);
+    throw new InternalServerErrorException('Failed to format conversation data');
+  }
+}
   private formatMessageResponse(message: any): MessageResponseDto {
     try {
       return {
@@ -847,11 +856,11 @@ async deleteMessages(
     });
 
     if (messages.length === 0) {
-  return {
-    deletedCount: 0,
-    skippedCount: messageIds.length
-  };
-}
+      return {
+        deletedCount: 0,
+        skippedCount: messageIds.length
+      };
+    }
 
     let deletableMessages;
 
@@ -866,11 +875,11 @@ async deleteMessages(
     const skippedCount = messageIds.length - deletableMessages.length;
 
     if (deletableMessages.length === 0) {
-  return {
-    deletedCount: 0,
-    skippedCount: messageIds.length
-  };
-}
+      return {
+        deletedCount: 0,
+        skippedCount: messageIds.length
+      };
+    }
 
     await this.messageModel.deleteMany({
       _id: { $in: deletableMessages.map(msg => msg._id) }
@@ -892,10 +901,20 @@ async deleteMessages(
       });
     }
 
-    return {
+    const result = {
       deletedCount: deletableMessages.length,
       skippedCount,
     };
+
+    // NEW: Emit real-time deletion event to all participants
+    this.chatGateway.emitMessageDeleted(
+      conversationId,
+      deletableMessages.map(msg => msg._id.toString()),
+      userId,
+      result
+    );
+
+    return result;
   } catch (error) {
     console.error('Error deleting messages:', error);
     if (

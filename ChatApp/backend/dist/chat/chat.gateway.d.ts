@@ -54,6 +54,22 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
         success: boolean;
         error: any;
     }>;
+    handleDeleteMessage(client: AuthenticatedSocket, data: {
+        conversationId: string;
+        messageIds: string[];
+    }): Promise<{
+        deletedCount: number;
+        skippedCount: number;
+        success: boolean;
+        error?: undefined;
+    } | {
+        success: boolean;
+        error: any;
+    }>;
+    emitMessageDeleted(conversationId: string, messageIds: string[], deletedBy: string, result: {
+        deletedCount: number;
+        skippedCount: number;
+    }): void;
     emitToUser(userId: string, event: string, data: any): void;
     emitToConversation(conversationId: string, event: string, data: any): void;
 }

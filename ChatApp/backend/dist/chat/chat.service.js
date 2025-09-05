@@ -19,14 +19,18 @@ const mongoose_2 = require("mongoose");
 const chat_schema_1 = require("../schemas/chat.schema");
 const chat_schema_2 = require("../schemas/chat.schema");
 const user_schema_1 = require("../schemas/user.schema");
+const common_2 = require("@nestjs/common");
+const chat_gateway_1 = require("./chat.gateway");
 let ChatService = class ChatService {
     conversationModel;
     messageModel;
     userModel;
-    constructor(conversationModel, messageModel, userModel) {
+    chatGateway;
+    constructor(conversationModel, messageModel, userModel, chatGateway) {
         this.conversationModel = conversationModel;
         this.messageModel = messageModel;
         this.userModel = userModel;
+        this.chatGateway = chatGateway;
     }
     async createDirectConversation(userId, createDirectDto) {
         try {
@@ -77,7 +81,7 @@ let ChatService = class ChatService {
             if (!populatedConversation) {
                 throw new common_1.InternalServerErrorException('Failed to retrieve created conversation');
             }
-            return this.formatConversationResponse(populatedConversation);
+            return this.formatConversationResponse(populatedConversation, userId);
         }
         catch (error) {
             console.error('Error creating direct conversation:', error);
@@ -139,7 +143,7 @@ let ChatService = class ChatService {
                 throw new common_1.InternalServerErrorException('Failed to retrieve created conversation');
             }
             await this.createSystemMessage(savedConversation._id.toString(), `Group "${name.trim()}" was created`);
-            return this.formatConversationResponse(populatedConversation);
+            return this.formatConversationResponse(populatedConversation, userId);
         }
         catch (error) {
             console.error('Error creating group conversation:', error);
@@ -164,7 +168,7 @@ let ChatService = class ChatService {
                 populate: { path: 'sender', select: 'email username' },
             })
                 .sort({ lastActivity: -1 });
-            return conversations.map((conv) => this.formatConversationResponse(conv));
+            return conversations.map((conv) => this.formatConversationResponse(conv, userId));
         }
         catch (error) {
             console.error('Error getting user conversations:', error);
@@ -466,8 +470,10 @@ let ChatService = class ChatService {
             console.error('Error creating system message:', error);
         }
     }
-    formatConversationResponse(conversation) {
+    formatConversationResponse(conversation, currentUserId) {
         try {
+            const isAdmin = conversation.type === 'group' &&
+                conversation.createdBy?.toString() === currentUserId;
             return {
                 id: conversation._id?.toString() ?? '',
                 name: conversation.name ?? '',
@@ -482,6 +488,7 @@ let ChatService = class ChatService {
                 lastActivity: conversation.lastActivity ?? new Date(),
                 description: conversation.description ?? undefined,
                 avatar: conversation.avatar ?? undefined,
+                isAdmin,
             };
         }
         catch (error) {
@@ -678,10 +685,12 @@ let ChatService = class ChatService {
                     lastActivity: new Date(),
                 });
             }
-            return {
+            const result = {
                 deletedCount: deletableMessages.length,
                 skippedCount,
             };
+            this.chatGateway.emitMessageDeleted(conversationId, deletableMessages.map(msg => msg._id.toString()), userId, result);
+            return result;
         }
         catch (error) {
             console.error('Error deleting messages:', error);
@@ -922,8 +931,10 @@ exports.ChatService = ChatService = __decorate([
     __param(0, (0, mongoose_1.InjectModel)(chat_schema_1.Conversation.name)),
     __param(1, (0, mongoose_1.InjectModel)(chat_schema_2.Message.name)),
     __param(2, (0, mongoose_1.InjectModel)(user_schema_1.User.name)),
+    __param(3, (0, common_2.Inject)((0, common_2.forwardRef)(() => chat_gateway_1.ChatGateway))),
     __metadata("design:paramtypes", [mongoose_2.Model,
         mongoose_2.Model,
-        mongoose_2.Model])
+        mongoose_2.Model,
+        chat_gateway_1.ChatGateway])
 ], ChatService);
 //# sourceMappingURL=chat.service.js.map

@@ -16,6 +16,7 @@ exports.ChatGateway = void 0;
 const websockets_1 = require("@nestjs/websockets");
 const socket_io_1 = require("socket.io");
 const jwt_1 = require("@nestjs/jwt");
+const common_1 = require("@nestjs/common");
 const chat_service_1 = require("./chat.service");
 const chat_dto_1 = require("./dto/chat.dto");
 let ChatGateway = class ChatGateway {
@@ -121,6 +122,39 @@ let ChatGateway = class ChatGateway {
             return { success: false, error: error.message };
         }
     }
+    async handleDeleteMessage(client, data) {
+        try {
+            const result = await this.chatService.deleteMessages(client.userId, {
+                conversationId: data.conversationId,
+                messageIds: data.messageIds,
+            });
+            this.server
+                .in(`conversation:${data.conversationId}`)
+                .emit('message:deleted', {
+                conversationId: data.conversationId,
+                messageIds: data.messageIds,
+                deletedBy: client.userId,
+                deletedCount: result.deletedCount,
+                skippedCount: result.skippedCount,
+            });
+            return { success: true, ...result };
+        }
+        catch (error) {
+            client.emit('error', { message: error.message });
+            return { success: false, error: error.message };
+        }
+    }
+    emitMessageDeleted(conversationId, messageIds, deletedBy, result) {
+        this.server
+            .in(`conversation:${conversationId}`)
+            .emit('message:deleted', {
+            conversationId,
+            messageIds,
+            deletedBy,
+            deletedCount: result.deletedCount,
+            skippedCount: result.skippedCount,
+        });
+    }
     emitToUser(userId, event, data) {
         const socketId = this.connectedUsers.get(userId);
         if (socketId) {
@@ -184,6 +218,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleMarkAsRead", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('message:delete'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __param(1, (0, websockets_1.MessageBody)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], ChatGateway.prototype, "handleDeleteMessage", null);
 exports.ChatGateway = ChatGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: {
@@ -191,6 +233,7 @@ exports.ChatGateway = ChatGateway = __decorate([
             credentials: true,
         },
     }),
+    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => chat_service_1.ChatService))),
     __metadata("design:paramtypes", [jwt_1.JwtService,
         chat_service_1.ChatService])
 ], ChatGateway);

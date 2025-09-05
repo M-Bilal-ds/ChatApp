@@ -40,6 +40,7 @@ export declare class ConversationResponseDto {
     lastActivity: Date;
     description?: string;
     avatar?: string;
+    isAdmin?: boolean;
     unreadCount?: number;
 }
 export declare class MessageResponseDto {
@@ -50,6 +51,7 @@ export declare class MessageResponseDto {
     type: string;
     createdAt: Date;
     edited: boolean;
+    isAdmin?: boolean;
     editedAt?: Date;
     readBy: {
         user: string;

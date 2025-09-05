@@ -94,7 +94,7 @@ import CreateDirectModal from './CreateDirectModal.vue'
 import CreateGroupModal from './CreateGroupModal.vue'
 import AddParticipantsModal from './AddParticipantsModal.vue'
 import type { User, Conversation, Message, ConversationType } from '../types/chat'
-
+import { defineProps, defineEmits, provide } from 'vue'
 /* -----------------------------
    Props / Emits
    ----------------------------- */
@@ -752,10 +752,10 @@ function handleLogout() {
     emit('logout')
   } catch (error) {
     console.error('Error during logout:', error)
-  }
-
-  
+  } 
 }
+
+provide('socket', socket)
 </script>
 
 <style scoped>

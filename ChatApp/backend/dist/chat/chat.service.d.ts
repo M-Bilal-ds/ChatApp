@@ -4,11 +4,13 @@ import { MessageDocument } from '../schemas/chat.schema';
 import { UserDocument } from '../schemas/user.schema';
 import { CreateDirectConversationDto, CreateGroupConversationDto, SendMessageDto, AddParticipantsDto, ConversationResponseDto, MessageResponseDto, UserResponseDto } from './dto/chat.dto';
 import { RemoveParticipantsDto, DeleteMessagesDto, UpdateGroupDto } from './dto/chat.dto';
+import { ChatGateway } from './chat.gateway';
 export declare class ChatService {
     private conversationModel;
     private messageModel;
     private userModel;
-    constructor(conversationModel: Model<ConversationDocument>, messageModel: Model<MessageDocument>, userModel: Model<UserDocument>);
+    private chatGateway;
+    constructor(conversationModel: Model<ConversationDocument>, messageModel: Model<MessageDocument>, userModel: Model<UserDocument>, chatGateway: ChatGateway);
     createDirectConversation(userId: string, createDirectDto: CreateDirectConversationDto): Promise<ConversationResponseDto>;
     createGroupConversation(userId: string, createGroupDto: CreateGroupConversationDto): Promise<ConversationResponseDto>;
     getUserConversations(userId: string): Promise<ConversationResponseDto[]>;
