@@ -4,10 +4,10 @@ import { HydratedDocument, Types } from 'mongoose';
 export type UserDocument = HydratedDocument<User>;
 
 @Schema({
-  timestamps: true, // Automatically add createdAt and updatedAt fields
+  timestamps: true, 
 })
 export class User {
-  _id: Types.ObjectId;   // 👈 Add this so TypeScript knows the type
+  _id: Types.ObjectId;
 
   @Prop({ required: true, unique: true })
   email: string;

@@ -89,19 +89,37 @@ let ChatGateway = class ChatGateway {
             return { success: false, error: error.message };
         }
     }
+    handleOnlineUsersRequest(client) {
+        const onlineUserIds = Array.from(this.connectedUsers.keys());
+        client.emit('online:users:list', { userIds: onlineUserIds });
+    }
     async handleLeaveConversation(client, data) {
         client.leave(`conversation:${data.conversationId}`);
         return { success: true };
     }
+    async handleMessageRead(client, data) {
+        await this.chatService.markMessageAsRead(client.userId, data.conversationId, data.messageId);
+        this.server
+            .in(`conversation:${data.conversationId}`)
+            .emit('message:read:server', {
+            messageId: data.messageId,
+            userId: client.userId,
+            readAt: new Date(),
+        });
+    }
     async handleTypingStart(client, data) {
-        client.to(`conversation:${data.conversationId}`).emit('typing:start:server', {
+        client
+            .to(`conversation:${data.conversationId}`)
+            .emit('typing:start:server', {
             userId: client.userId,
             userEmail: client.userEmail,
             conversationId: data.conversationId,
         });
     }
     async handleTypingStop(client, data) {
-        client.to(`conversation:${data.conversationId}`).emit('typing:stop:server', {
+        client
+            .to(`conversation:${data.conversationId}`)
+            .emit('typing:stop:server', {
             userId: client.userId,
             userEmail: client.userEmail,
             conversationId: data.conversationId,
@@ -110,7 +128,9 @@ let ChatGateway = class ChatGateway {
     async handleMarkAsRead(client, data) {
         try {
             await this.chatService.markMessageAsRead(client.userId, data.conversationId, data.messageId);
-            client.to(`conversation:${data.conversationId}`).emit('message:read:server', {
+            client
+                .to(`conversation:${data.conversationId}`)
+                .emit('message:read:server', {
                 messageId: data.messageId,
                 userId: client.userId,
                 readAt: new Date(),
@@ -145,9 +165,7 @@ let ChatGateway = class ChatGateway {
         }
     }
     emitMessageDeleted(conversationId, messageIds, deletedBy, result) {
-        this.server
-            .in(`conversation:${conversationId}`)
-            .emit('message:deleted', {
+        this.server.in(`conversation:${conversationId}`).emit('message:deleted', {
             conversationId,
             messageIds,
             deletedBy,
@@ -187,6 +205,13 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleJoinConversation", null);
 __decorate([
+    (0, websockets_1.SubscribeMessage)('online:users:request'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], ChatGateway.prototype, "handleOnlineUsersRequest", null);
+__decorate([
     (0, websockets_1.SubscribeMessage)('conversation:leave'),
     __param(0, (0, websockets_1.ConnectedSocket)()),
     __param(1, (0, websockets_1.MessageBody)()),
@@ -194,6 +219,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleLeaveConversation", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('message:read:client'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __param(1, (0, websockets_1.MessageBody)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], ChatGateway.prototype, "handleMessageRead", null);
 __decorate([
     (0, websockets_1.SubscribeMessage)('typing:start:client'),
     __param(0, (0, websockets_1.ConnectedSocket)()),

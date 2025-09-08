@@ -5,10 +5,8 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-3">
           <!-- Avatar -->
-          <div
-            class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
-            :class="conversation.type === 'group' ? 'bg-[#2c7da0]' : 'bg-[#014f86]'"
-          >
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
+            :class="conversation.type === 'group' ? 'bg-[#2c7da0]' : 'bg-[#014f86]'">
             <span v-if="conversation.type === 'group'">
               {{ conversation.name.charAt(0).toUpperCase() }}
             </span>
@@ -37,40 +35,31 @@
 
         <!-- Actions -->
         <div class="flex items-center space-x-2">
-          <button
-            v-if="conversation.type === 'group'"
-            @click="$emit('add-participants')"
+          <button v-if="conversation.type === 'group'" @click="$emit('add-participants')"
             class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 hover:cursor-pointer rounded-lg transition-colors"
-            title="Add participants"
-          >
+            title="Add participants">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
             </svg>
           </button>
-          
+
           <div class="relative">
-            <button
-              @click="showOptionsMenu = !showOptionsMenu"
+            <button @click="showOptionsMenu = !showOptionsMenu"
               class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg hover:cursor-pointer transition-colors"
-              title="More options"
-            >
+              title="More options">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
+                </path>
               </svg>
             </button>
-            
+
             <!-- Options Menu Component -->
-            <ChatOptionsMenu
-  :conversation="conversation"
-  :currentUser="currentUser"
-  :isOpen="showOptionsMenu"
-  @close="handleOptionsMenuClose"
-  @clear-chat="handleClearChat"
-  @remove-participants="handleRemoveParticipants"
-  @update-group="handleUpdateGroup"
-  @delete-conversation="handleDeleteConversation"
-  @toggle-message-selection="toggleMessageSelection"
-/>
+            <ChatOptionsMenu :conversation="conversation" :currentUser="currentUser" :isOpen="showOptionsMenu"
+              @close="handleOptionsMenuClose" @clear-chat="handleClearChat"
+              @remove-participants="handleRemoveParticipants" @update-group="handleUpdateGroup"
+              @delete-conversation="handleDeleteConversation" @toggle-message-selection="toggleMessageSelection" />
           </div>
         </div>
       </div>
@@ -80,33 +69,24 @@
     <div v-if="messageSelectionMode" class="bg-blue-50 border-b border-blue-200 p-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-3">
-          <button
-  @click.stop.prevent="toggleMessageSelection()"
-  class="text-blue-600 hover:text-blue-800"
->
-  <svg class="w-5 h-5 hover:cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-</button>
+          <button @click.stop.prevent="toggleMessageSelection()" class="text-blue-600 hover:text-blue-800">
+            <svg class="w-5 h-5 hover:cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
 
           <span class="text-blue-800 font-medium">
             {{ selectedMessages.length }} message{{ selectedMessages.length !== 1 ? 's' : '' }} selected
           </span>
         </div>
-        
+
         <div class="flex items-center space-x-2">
-          <button
-            v-if="selectedMessages.length > 0"
-            @click="selectAllMessages"
-            class="px-3 py-1 hover:cursor-pointer text-sm text-blue-600 hover:text-blue-800"
-          >
+          <button v-if="selectedMessages.length > 0" @click="selectAllMessages"
+            class="px-3 py-1 hover:cursor-pointer text-sm text-blue-600 hover:text-blue-800">
             Select All
           </button>
-          <button
-            v-if="selectedMessages.length > 0"
-            @click="deleteSelectedMessages"
-            class="px-3 py-1 hover:cursor-pointer bg-red-600 text-white text-sm rounded hover:bg-red-700"
-          >
+          <button v-if="selectedMessages.length > 0" @click="deleteSelectedMessages"
+            class="px-3 py-1 hover:cursor-pointer bg-red-600 text-white text-sm rounded hover:bg-red-700">
             Delete Selected
           </button>
         </div>
@@ -118,7 +98,7 @@
       <div v-if="loading" class="flex justify-center py-8">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
-      
+
       <div v-else-if="messages.length === 0" class="flex items-center justify-center h-full text-gray-500">
         <div class="text-center">
           <div class="text-6xl mb-4">💬</div>
@@ -126,22 +106,14 @@
           <p class="text-sm">Start the conversation!</p>
         </div>
       </div>
-      
+
       <div v-else>
-        <MessageItem
-          v-for="(message, index) in messages"
-          :key="message.id"
-          :message="message"
-          :currentUser="currentUser"
-          :showAvatar="shouldShowAvatar(index)"
-          :showTimestamp="shouldShowTimestamp(index)"
-          :selectionMode="messageSelectionMode"
-          :isSelected="selectedMessages.includes(message.id)"
-          :isAdmin="isGroupAdmin"
-          :conversationType="conversation.type"
-          @toggle-selection="toggleMessageSelection(message.id)"
-        />
-        
+        <MessageItem v-for="(message, index) in messages" :key="message.id" :message="message"
+          :currentUser="currentUser" :showAvatar="shouldShowAvatar(index)" :showTimestamp="shouldShowTimestamp(index)"
+          :selectionMode="messageSelectionMode" :isSelected="selectedMessages.includes(message.id)"
+          :isAdmin="isGroupAdmin" :conversationType="conversation.type"
+          @toggle-selection="toggleMessageSelection(message.id)" />
+
         <!-- Typing indicator -->
         <div v-if="typingUsers.has(conversation.id)" class="flex items-center space-x-2 text-gray-500">
           <div class="flex space-x-1">
@@ -158,24 +130,16 @@
     <div v-if="!messageSelectionMode" class="p-4 border-t border-gray-200 bg-white">
       <div class="flex items-end space-x-3">
         <div class="flex-1">
-          <textarea
-            ref="messageInput"
-            v-model="messageText"
-            @keydown="handleKeyDown"
-            @input="handleInput"
-            placeholder="Type a message..."
-            rows="1"
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none max-h-32"
-          ></textarea>
+          <textarea ref="messageInput" v-model="messageText" @keydown="handleKeyDown" @input="handleInput"
+            placeholder="Type a message..." rows="1"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none max-h-32"></textarea>
         </div>
-        
-        <button
-          @click="sendMessage"
-          :disabled="!messageText.trim()"
-          class="bg-[#014f86] text-white px-6 py-3 mb-2 rounded-lg font-medium hover:bg-[#013a63] hover:cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-        >
+
+        <button @click="sendMessage" :disabled="!messageText.trim()"
+          class="bg-[#014f86] text-white px-6 py-3 mb-2 rounded-lg font-medium hover:bg-[#013a63] hover:cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8">
+            </path>
           </svg>
         </button>
       </div>
@@ -256,18 +220,17 @@ onMounted(() => {
   messageInput.value?.focus()
   socket?.on('message:deleted', (data: MessageDeletedData) => {
     console.log('Received message deletion event:', data)
-    
+
     // Remove deleted messages from local state immediately
     const messagesToRemove = data.messageIds
-    props.messages.splice(0, props.messages.length, 
+    props.messages.splice(0, props.messages.length,
       ...props.messages.filter(m => !messagesToRemove.includes(m.id))
     )
-    
-    // If we're in selection mode and deleted messages were selected, remove them from selection
+
     if (messageSelectionMode.value) {
       selectedMessages.value = selectedMessages.value.filter(id => !messagesToRemove.includes(id))
     }
-    
+
     // Show notification if someone else deleted messages
     if (data.deletedBy !== props.currentUser?.id) {
       emit('show-success', `${data.deletedCount} message(s) were deleted`)
@@ -275,7 +238,6 @@ onMounted(() => {
   })
 })
 
-// Clean up in onUnmounted
 onUnmounted(() => {
   socket?.off('message:deleted')
 })
@@ -287,13 +249,13 @@ const sendMessage = () => {
 
   emit('send-message', content)
   messageText.value = ''
-  
+
   // Stop typing indicator
   if (isTyping) {
     emit('typing-stop')
     isTyping = false
   }
-  
+
   // Auto-resize textarea
   if (messageInput.value) {
     messageInput.value.style.height = 'auto'
@@ -393,7 +355,7 @@ const handleDeleteConversation = async () => {
   console.log('handleDeleteConversation called')
   try {
     const result = await chatApi.deleteConversation(props.conversation.id)
-    
+
     if (result.reassigned) {
       // Admin was reassigned, update the conversation instead of deleting
       emit('show-success', result.message + '. Admin has been reassigned.')
@@ -443,7 +405,7 @@ const toggleMessageSelection = (messageId?: string) => {
 
 const selectAllMessages = () => {
   // Select all user's own messages (or all messages in direct chat)
-  const selectableMessages = props.messages.filter(message => 
+  const selectableMessages = props.messages.filter(message =>
     props.conversation.type === 'direct' || message.sender?.id === props.currentUser?.id
   )
   selectedMessages.value = selectableMessages.map(m => m.id)
@@ -451,28 +413,28 @@ const selectAllMessages = () => {
 
 const deleteSelectedMessages = async () => {
   if (selectedMessages.value.length === 0) return
-  
+
   try {
     const result = await chatApi.deleteMessages(props.conversation.id, selectedMessages.value)
     const deletedCount = result.deletedCount
     const skippedCount = result.skippedCount
-    
+
     let message = `Deleted ${deletedCount} message(s)`
     if (skippedCount > 0) {
       message += ` (${skippedCount} message(s) could not be deleted)`
     }
-    
+
     emit('show-success', message)
-    
+
     // Remove deleted messages from local state immediately to prevent double-deletion
     const messagesToDelete = selectedMessages.value
     props.messages.splice(0, props.messages.length, ...props.messages.filter(m => !messagesToDelete.includes(m.id)))
-    
+
     // Exit selection mode
     messageSelectionMode.value = false
     selectedMessages.value = []
-    
-    // Then refresh from server to ensure consistency
+
+    // Refresh from server to ensure consistency
     emit('messages-updated')
   } catch (error: any) {
     console.error('Failed to delete messages:', error)
@@ -485,7 +447,7 @@ const getDisplayName = (): string => {
   if (props.conversation.type === 'group') {
     return props.conversation.name
   }
-  
+
   const partner = props.conversation.participants.find(p => p.id !== props.currentUser?.id)
   return partner?.username || 'Unknown User'
 }
@@ -502,7 +464,7 @@ const isPartnerOnline = (): boolean => {
 
 const formatLastSeen = (lastLogin?: Date): string => {
   if (!lastLogin) return 'recently'
-  
+
   const now = new Date()
   const diff = now.getTime() - new Date(lastLogin).getTime()
   const minutes = Math.floor(diff / 60000)
@@ -513,16 +475,16 @@ const formatLastSeen = (lastLogin?: Date): string => {
   if (minutes < 60) return `${minutes}m ago`
   if (hours < 24) return `${hours}h ago`
   if (days < 7) return `${days}d ago`
-  
+
   return new Date(lastLogin).toLocaleDateString()
 }
 
 const shouldShowAvatar = (index: number): boolean => {
   if (index === 0) return true
-  
+
   const currentMessage = props.messages[index]
   const previousMessage = props.messages[index - 1]
-  
+
   return currentMessage.sender?.id !== previousMessage.sender?.id
 }
 

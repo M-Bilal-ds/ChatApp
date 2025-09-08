@@ -38,7 +38,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
-      // Extract token from handshake auth or query
       const token =
         (client.handshake.auth?.token as string) ||
         (client.handshake.query?.token as string);
@@ -117,7 +116,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { conversationId: string },
   ) {
     try {
-      // Verify user is participant (throws if not)
+      // Verify user is participant
       await this.chatService.getConversationMessages(
         client.userId!,
         data.conversationId,
@@ -134,6 +133,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('online:users:request')
+  handleOnlineUsersRequest(@ConnectedSocket() client: AuthenticatedSocket) {
+    // Return all currently online user IDs
+    const onlineUserIds = Array.from(this.connectedUsers.keys());
+    client.emit('online:users:list', { userIds: onlineUserIds });
+  }
+
   @SubscribeMessage('conversation:leave')
   async handleLeaveConversation(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -143,16 +149,35 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { success: true };
   }
 
+  @SubscribeMessage('message:read:client')
+async handleMessageRead(
+  @ConnectedSocket() client: AuthenticatedSocket,
+  @MessageBody() data: { conversationId: string; messageId: string },
+) {
+  // Update message read status in DB
+  await this.chatService.markMessageAsRead(client.userId!, data.conversationId, data.messageId)
+  // Notify all participants
+  this.server
+    .in(`conversation:${data.conversationId}`)
+    .emit('message:read:server', {
+      messageId: data.messageId,
+      userId: client.userId,
+      readAt: new Date(),
+    })
+}
+
   @SubscribeMessage('typing:start:client')
   async handleTypingStart(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() data: { conversationId: string },
   ) {
-    client.to(`conversation:${data.conversationId}`).emit('typing:start:server', {
-      userId: client.userId,
-      userEmail: client.userEmail,
-      conversationId: data.conversationId,
-    });
+    client
+      .to(`conversation:${data.conversationId}`)
+      .emit('typing:start:server', {
+        userId: client.userId,
+        userEmail: client.userEmail,
+        conversationId: data.conversationId,
+      });
   }
 
   @SubscribeMessage('typing:stop:client')
@@ -160,11 +185,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() data: { conversationId: string },
   ) {
-    client.to(`conversation:${data.conversationId}`).emit('typing:stop:server', {
-      userId: client.userId,
-      userEmail: client.userEmail,
-      conversationId: data.conversationId,
-    });
+    client
+      .to(`conversation:${data.conversationId}`)
+      .emit('typing:stop:server', {
+        userId: client.userId,
+        userEmail: client.userEmail,
+        conversationId: data.conversationId,
+      });
   }
 
   @SubscribeMessage('message:read:client')
@@ -180,11 +207,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
 
       // Notify other participants
-      client.to(`conversation:${data.conversationId}`).emit('message:read:server', {
-        messageId: data.messageId,
-        userId: client.userId,
-        readAt: new Date(),
-      });
+      client
+        .to(`conversation:${data.conversationId}`)
+        .emit('message:read:server', {
+          messageId: data.messageId,
+          userId: client.userId,
+          readAt: new Date(),
+        });
 
       return { success: true };
     } catch (error) {
@@ -222,23 +251,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // Helper method to emit deletion events when messages are deleted via REST API
-
-// Also add this helper method that your chat.service can call
-// Add this method to emit deletion events when messages are deleted via REST API
-emitMessageDeleted(conversationId: string, messageIds: string[], deletedBy: string, result: { deletedCount: number; skippedCount: number }) {
-  this.server
-    .in(`conversation:${conversationId}`)
-    .emit('message:deleted', {
+  // Emit deletion events when messages are deleted via REST API
+  emitMessageDeleted(
+    conversationId: string,
+    messageIds: string[],
+    deletedBy: string,
+    result: { deletedCount: number; skippedCount: number },
+  ) {
+    this.server.in(`conversation:${conversationId}`).emit('message:deleted', {
       conversationId,
       messageIds,
       deletedBy,
       deletedCount: result.deletedCount,
       skippedCount: result.skippedCount,
     });
-}
+  }
 
-  // Helper method to emit to specific user
   emitToUser(userId: string, event: string, data: any) {
     const socketId = this.connectedUsers.get(userId);
     if (socketId) {
@@ -246,7 +274,6 @@ emitMessageDeleted(conversationId: string, messageIds: string[], deletedBy: stri
     }
   }
 
-  // Helper method to emit to conversation participants
   emitToConversation(conversationId: string, event: string, data: any) {
     this.server.in(`conversation:${conversationId}`).emit(event, data);
   }

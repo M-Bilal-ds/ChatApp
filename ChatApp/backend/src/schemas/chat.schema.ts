@@ -32,7 +32,7 @@ export class Conversation {
   description: string;
 
   @Prop()
-  avatar: string; // For group chat avatars
+  avatar: string;
 }
 
 @Schema({
@@ -53,7 +53,10 @@ export class Message {
   @Prop({ enum: ['text', 'image', 'file', 'system'], default: 'text' })
   type: string;
 
-  @Prop({ type: [{ user: { type: Types.ObjectId, ref: 'User' }, readAt: Date }], default: [] })
+  @Prop({
+    type: [{ user: { type: Types.ObjectId, ref: 'User' }, readAt: Date }],
+    default: [],
+  })
   readBy: { user: Types.ObjectId; readAt: Date }[];
 
   @Prop({ default: false })
@@ -69,13 +72,12 @@ export class Message {
   replyTo: Types.ObjectId;
 
   @Prop({ type: Object })
-  metadata: any; // For file info, link previews, etc.
+  metadata: any;
 }
 
 export const ConversationSchema = SchemaFactory.createForClass(Conversation);
 export const MessageSchema = SchemaFactory.createForClass(Message);
 
-// Indexes for better performance
 ConversationSchema.index({ participants: 1, lastActivity: -1 });
 ConversationSchema.index({ type: 1, lastActivity: -1 });
 MessageSchema.index({ conversationId: 1, createdAt: -1 });

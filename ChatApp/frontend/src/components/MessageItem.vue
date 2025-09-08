@@ -177,13 +177,10 @@ const canSelect = computed(() => {
   if (isSystemMessage.value) return false
 
   if (props.conversationType === 'direct') {
-    // only own messages
     return isOwnMessage.value
   }
 
   if (props.conversationType === 'group') {
-    // admin → can select all
-    // others → only their own
     return props.isAdmin || isOwnMessage.value
   }
 

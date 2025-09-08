@@ -1,4 +1,3 @@
-
 // Add these new endpoints to your existing ChatController class
 
 import {
@@ -26,9 +25,7 @@ import {
   MarkAsReadDto,
   RemoveParticipantsDto,
   DeleteMessagesDto,
-  ClearChatDto,
   UpdateGroupDto,
-  DeleteConversationDto,
 } from './dto/chat.dto';
 
 @Controller('chat')
@@ -49,7 +46,10 @@ export class ChatController {
     @Request() req,
     @Body() createDirectDto: CreateDirectConversationDto,
   ) {
-    return this.chatService.createDirectConversation(req.user.sub, createDirectDto);
+    return this.chatService.createDirectConversation(
+      req.user.sub,
+      createDirectDto,
+    );
   }
 
   // Create group conversation
@@ -59,7 +59,10 @@ export class ChatController {
     @Request() req,
     @Body() createGroupDto: CreateGroupConversationDto,
   ) {
-    return this.chatService.createGroupConversation(req.user.sub, createGroupDto);
+    return this.chatService.createGroupConversation(
+      req.user.sub,
+      createGroupDto,
+    );
   }
 
   // Get conversation messages
@@ -72,7 +75,7 @@ export class ChatController {
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 50;
-    
+
     return this.chatService.getConversationMessages(
       req.user.sub,
       conversationId,
@@ -97,7 +100,10 @@ export class ChatController {
   // Add participants to group
   @Post('conversations/participants')
   @HttpCode(HttpStatus.OK)
-  async addParticipants(@Request() req, @Body() addParticipantsDto: AddParticipantsDto) {
+  async addParticipants(
+    @Request() req,
+    @Body() addParticipantsDto: AddParticipantsDto,
+  ) {
     return this.chatService.addParticipants(req.user.sub, addParticipantsDto);
   }
 
@@ -118,7 +124,10 @@ export class ChatController {
     @Request() req,
     @Body() removeParticipantsDto: RemoveParticipantsDto,
   ) {
-    return this.chatService.removeParticipants(req.user.sub, removeParticipantsDto);
+    return this.chatService.removeParticipants(
+      req.user.sub,
+      removeParticipantsDto,
+    );
   }
 
   // Delete selected messages (users can only delete their own messages)
@@ -134,20 +143,14 @@ export class ChatController {
   // Clear chat history (admin only for groups)
   @Delete('conversations/:id/clear')
   @HttpCode(HttpStatus.OK)
-  async clearChat(
-    @Request() req,
-    @Param('id') conversationId: string,
-  ) {
+  async clearChat(@Request() req, @Param('id') conversationId: string) {
     return this.chatService.clearChat(req.user.sub, conversationId);
   }
 
   // Update group name/description (admin only)
   @Patch('conversations/group')
   @HttpCode(HttpStatus.OK)
-  async updateGroup(
-    @Request() req,
-    @Body() updateGroupDto: UpdateGroupDto,
-  ) {
+  async updateGroup(@Request() req, @Body() updateGroupDto: UpdateGroupDto) {
     return this.chatService.updateGroup(req.user.sub, updateGroupDto);
   }
 
@@ -161,12 +164,14 @@ export class ChatController {
     return this.chatService.deleteConversation(req.user.sub, conversationId);
   }
 
-  // Get conversation details (useful for checking admin permissions on frontend)
   @Get('conversations/:id')
   async getConversationDetails(
     @Request() req,
     @Param('id') conversationId: string,
   ) {
-    return this.chatService.getConversationDetails(req.user.sub, conversationId);
+    return this.chatService.getConversationDetails(
+      req.user.sub,
+      conversationId,
+    );
   }
 }

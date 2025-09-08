@@ -1,147 +1,185 @@
-import axios from 'axios'
-import type { 
-  User, 
-  Conversation, 
-  Message, 
-  CreateDirectConversationDto, 
+import axios from "axios";
+import type {
+  User,
+  Conversation,
+  Message,
+  CreateDirectConversationDto,
   CreateGroupConversationDto,
-  SendMessageDto 
-} from '../types/chat'
+  SendMessageDto,
+} from "../types/chat";
 
-const API_BASE_URL = 'http://localhost:3000/api'
+const API_BASE_URL = "http://localhost:3000/api";
 
-// Create axios instance with default config
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-})
+});
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token')
+  const token = localStorage.getItem("auth_token");
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+    config.headers.Authorization = `Bearer ${token}`;
   }
-  return config
-})
+  return config;
+});
 
 // Response interceptor to handle auth errors
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token')
-      window.location.reload()
+      localStorage.removeItem("auth_token");
+      window.location.reload();
     }
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
 export const chatApi = {
   // Conversations
   async getConversations(): Promise<Conversation[]> {
-    const response = await apiClient.get('/chat/conversations')
-    return response.data
+    const response = await apiClient.get("/chat/conversations");
+    return response.data;
   },
 
-  async createDirectConversation(data: CreateDirectConversationDto): Promise<Conversation> {
-    const response = await apiClient.post('/chat/conversations/direct', data)
-    return response.data
+  async createDirectConversation(
+    data: CreateDirectConversationDto
+  ): Promise<Conversation> {
+    const response = await apiClient.post("/chat/conversations/direct", data);
+    return response.data;
   },
 
-  async createGroupConversation(data: CreateGroupConversationDto): Promise<Conversation> {
-    const response = await apiClient.post('/chat/conversations/group', data)
-    return response.data
+  async createGroupConversation(
+    data: CreateGroupConversationDto
+  ): Promise<Conversation> {
+    const response = await apiClient.post("/chat/conversations/group", data);
+    return response.data;
   },
 
   // Messages
-  async getMessages(conversationId: string, page = 1, limit = 50): Promise<Message[]> {
-    const response = await apiClient.get(`/chat/conversations/${conversationId}/messages`, {
-      params: { page, limit }
-    })
-    return response.data
+  async getMessages(
+    conversationId: string,
+    page = 1,
+    limit = 50
+  ): Promise<Message[]> {
+    const response = await apiClient.get(
+      `/chat/conversations/${conversationId}/messages`,
+      {
+        params: { page, limit },
+      }
+    );
+    return response.data;
   },
 
   async sendMessage(data: SendMessageDto): Promise<Message> {
-    const response = await apiClient.post('/chat/messages', data)
-    return response.data
+    const response = await apiClient.post("/chat/messages", data);
+    return response.data;
   },
 
   // Users
   async searchUsers(query: string): Promise<User[]> {
-    const response = await apiClient.get('/chat/users/search', {
-      params: { query }
-    })
-    return response.data
+    const response = await apiClient.get("/chat/users/search", {
+      params: { query },
+    });
+    return response.data;
   },
 
   // Participants
-  async addParticipants(conversationId: string, participantEmails: string[]): Promise<Conversation> {
-    const response = await apiClient.post('/chat/conversations/participants', {
+  async addParticipants(
+    conversationId: string,
+    participantEmails: string[]
+  ): Promise<Conversation> {
+    const response = await apiClient.post("/chat/conversations/participants", {
       conversationId,
-      participantEmails
-    })
-    return response.data
+      participantEmails,
+    });
+    return response.data;
   },
 
-  // Read status - FIXED: Use correct endpoint
   async markAsRead(conversationId: string, messageId: string): Promise<void> {
-    await apiClient.post('/chat/messages/read', {
+    await apiClient.post("/chat/messages/read", {
       conversationId,
-      messageId
-    })
+      messageId,
+    });
   },
-  
+
   // Get conversation details with permissions
-  async getConversationDetails(conversationId: string): Promise<Conversation & { isAdmin: boolean; canManage: boolean }> {
-    const response = await apiClient.get(`/chat/conversations/${conversationId}`)
-    return response.data
+  async getConversationDetails(
+    conversationId: string
+  ): Promise<Conversation & { isAdmin: boolean; canManage: boolean }> {
+    const response = await apiClient.get(
+      `/chat/conversations/${conversationId}`
+    );
+    return response.data;
   },
 
   // Remove participants from group (admin only)
-  async removeParticipants(conversationId: string, participantIds: string[]): Promise<Conversation> {
-    const response = await apiClient.delete('/chat/conversations/participants', {
-      data: {
-        conversationId,
-        participantIds
+  async removeParticipants(
+    conversationId: string,
+    participantIds: string[]
+  ): Promise<Conversation> {
+    const response = await apiClient.delete(
+      "/chat/conversations/participants",
+      {
+        data: {
+          conversationId,
+          participantIds,
+        },
       }
-    })
-    return response.data
+    );
+    return response.data;
   },
 
-  // Delete selected messages (users can only delete their own)
-  async deleteMessages(conversationId: string, messageIds: string[]): Promise<{ deletedCount: number; skippedCount: number }> {
-    const response = await apiClient.delete('/chat/messages', {
+  // Delete selected messages
+  async deleteMessages(
+    conversationId: string,
+    messageIds: string[]
+  ): Promise<{ deletedCount: number; skippedCount: number }> {
+    const response = await apiClient.delete("/chat/messages", {
       data: {
         conversationId,
-        messageIds
-      }
-    })
-    return response.data
+        messageIds,
+      },
+    });
+    return response.data;
   },
 
-  // Clear chat history (admin only for groups)
+  // Clear chat history
   async clearChat(conversationId: string): Promise<{ clearedCount: number }> {
-    const response = await apiClient.delete(`/chat/conversations/${conversationId}/clear`)
-    return response.data
+    const response = await apiClient.delete(
+      `/chat/conversations/${conversationId}/clear`
+    );
+    return response.data;
   },
 
-  // Update group name/description (admin only)
-  async updateGroup(conversationId: string, name?: string, description?: string): Promise<Conversation> {
-    const response = await apiClient.patch('/chat/conversations/group', {
+  // Update group name/description
+  async updateGroup(
+    conversationId: string,
+    name?: string,
+    description?: string
+  ): Promise<Conversation> {
+    const response = await apiClient.patch("/chat/conversations/group", {
       conversationId,
       name,
-      description
-    })
-    return response.data
+      description,
+    });
+    return response.data;
   },
 
   // Delete/Leave conversation
-  async deleteConversation(conversationId: string): Promise<{ message: string; reassigned?: boolean; newAdmin?: string; updatedConversation?: any }> {
-  const response = await apiClient.delete(`/chat/conversations/${conversationId}`)
-  return response.data
-}
+  async deleteConversation(
+    conversationId: string
+  ): Promise<{
+    message: string;
+    reassigned?: boolean;
+    newAdmin?: string;
+    updatedConversation?: any;
+  }> {
+    const response = await apiClient.delete(
+      `/chat/conversations/${conversationId}`
+    );
+    return response.data;
+  },
+};
 
-
-}
-
-export default apiClient
+export default apiClient;

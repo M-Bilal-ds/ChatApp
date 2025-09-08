@@ -90,7 +90,6 @@ export class ConversationResponseDto {
 export class MessageResponseDto {
   id: string;
   conversationId: string;
-  // Allow null for system messages
   sender: UserResponseDto | null;
   content: string;
   type: string;
@@ -102,8 +101,7 @@ export class MessageResponseDto {
   replyTo?: MessageResponseDto;
 }
 
-// Add these new DTOs to your existing chat.dto.ts file
-
+//Chat Menu DTOs 
 export class RemoveParticipantsDto {
   @IsMongoId()
   @IsNotEmpty()

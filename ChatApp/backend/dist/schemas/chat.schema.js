@@ -92,7 +92,10 @@ __decorate([
     __metadata("design:type", String)
 ], Message.prototype, "type", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: [{ user: { type: mongoose_2.Types.ObjectId, ref: 'User' }, readAt: Date }], default: [] }),
+    (0, mongoose_1.Prop)({
+        type: [{ user: { type: mongoose_2.Types.ObjectId, ref: 'User' }, readAt: Date }],
+        default: [],
+    }),
     __metadata("design:type", Array)
 ], Message.prototype, "readBy", void 0);
 __decorate([

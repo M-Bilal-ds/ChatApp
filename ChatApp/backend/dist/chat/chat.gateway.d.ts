@@ -33,11 +33,16 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
         success: boolean;
         error: any;
     }>;
+    handleOnlineUsersRequest(client: AuthenticatedSocket): void;
     handleLeaveConversation(client: AuthenticatedSocket, data: {
         conversationId: string;
     }): Promise<{
         success: boolean;
     }>;
+    handleMessageRead(client: AuthenticatedSocket, data: {
+        conversationId: string;
+        messageId: string;
+    }): Promise<void>;
     handleTypingStart(client: AuthenticatedSocket, data: {
         conversationId: string;
     }): Promise<void>;

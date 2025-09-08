@@ -51,7 +51,6 @@ export interface SendMessageDto {
   replyTo?: string
 }
 
-// In types/chat.ts
 export interface MessageDeletedData {
   conversationId: string
   messageIds: string[]
@@ -77,7 +76,7 @@ export interface SocketEvents {
   'typing:stop:server': { userId: string; userEmail: string; conversationId: string }
   'message:read:server': { messageId: string; userId: string; readAt: Date }
   'error': { message: string }
+  'online:users:list': { userIds: string[] }
 }
 
-// filepath: /home/bilal/Nest.js/ChatApp/frontend/src/types/chat.ts
 export type ConversationType = 'direct' | 'group'

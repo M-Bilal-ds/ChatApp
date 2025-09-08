@@ -1,37 +1,19 @@
 <template>
   <div class="flex h-screen bg-gray-100">
     <!-- Sidebar -->
-    <ChatSidebar
-      :conversations="conversations"
-      :currentUser="currentUser"
-      :selectedConversation="selectedConversation"
-      :onlineUsers="onlineUsers"
-      @select-conversation="selectConversation"
-      @create-direct-chat="showCreateDirectModal = true"
-      @create-group-chat="showCreateGroupModal = true"
-      @logout="handleLogout"
-    />
+    <ChatSidebar :conversations="conversations" :currentUser="currentUser" :selectedConversation="selectedConversation"
+      :onlineUsers="onlineUsers" @select-conversation="selectConversation"
+      @create-direct-chat="showCreateDirectModal = true" @create-group-chat="showCreateGroupModal = true"
+      @logout="handleLogout" />
 
     <!-- Main Chat Area -->
     <div class="flex-1 flex flex-col">
-      <ChatWindow
-  v-if="selectedConversation"
-  :conversation="selectedConversation"
-  :messages="messages"
-  :currentUser="currentUser"
-  :loading="messagesLoading"
-  :typingUsers="typingUsersMap"
-  :onlineUsers="onlineUsers"
-  @send-message="sendMessage"
-  @typing-start="handleTypingStart"
-  @typing-stop="handleTypingStop"
-  @add-participants="showAddParticipantsModal = true"
-  @messages-updated="handleMessagesUpdated"
-  @show-error="showError"
-  @show-success="showSuccess"
-  @conversation-updated="handleConversationUpdated"
-  @conversation-deleted="handleConversationDeleted"
-/>
+      <ChatWindow v-if="selectedConversation" :conversation="selectedConversation" :messages="messages"
+        :currentUser="currentUser" :loading="messagesLoading" :typingUsers="typingUsersMap" :onlineUsers="onlineUsers"
+        @send-message="sendMessage" @typing-start="handleTypingStart" @typing-stop="handleTypingStop"
+        @add-participants="showAddParticipantsModal = true" @messages-updated="handleMessagesUpdated"
+        @show-error="showError" @show-success="showSuccess" @conversation-updated="handleConversationUpdated"
+        @conversation-deleted="handleConversationDeleted" />
 
 
       <!-- Empty state -->
@@ -45,39 +27,23 @@
     </div>
 
     <!-- Modals -->
-    <CreateDirectModal
-      v-if="showCreateDirectModal"
-      @close="showCreateDirectModal = false"
-      @create="createDirectConversation"
-    />
+    <CreateDirectModal v-if="showCreateDirectModal" @close="showCreateDirectModal = false"
+      @create="createDirectConversation" />
 
-    <CreateGroupModal
-      v-if="showCreateGroupModal"
-      @close="showCreateGroupModal = false"
-      @create="createGroupConversation"
-    />
+    <CreateGroupModal v-if="showCreateGroupModal" @close="showCreateGroupModal = false"
+      @create="createGroupConversation" />
 
-    <AddParticipantsModal
-      v-if="showAddParticipantsModal && selectedConversation"
-      :conversation="selectedConversation"
-      @close="showAddParticipantsModal = false"
-      @add="addParticipants"
-    />
+    <AddParticipantsModal v-if="showAddParticipantsModal && selectedConversation" :conversation="selectedConversation"
+      @close="showAddParticipantsModal = false" @add="addParticipants" />
 
     <!-- Error Toast -->
-    <div
-      v-if="errorMessage"
-      class="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50"
-    >
+    <div v-if="errorMessage" class="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
       {{ errorMessage }}
       <button @click="errorMessage = ''" class="ml-2 text-white hover:text-gray-200">×</button>
     </div>
 
     <!-- Success Toast -->
-    <div
-      v-if="successMessage"
-      class="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50"
-    >
+    <div v-if="successMessage" class="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
       {{ successMessage }}
       <button @click="successMessage = ''" class="ml-2 text-white hover:text-gray-200">×</button>
     </div>
@@ -95,15 +61,12 @@ import CreateGroupModal from './CreateGroupModal.vue'
 import AddParticipantsModal from './AddParticipantsModal.vue'
 import type { User, Conversation, Message, ConversationType } from '../types/chat'
 import { defineProps, defineEmits, provide } from 'vue'
-/* -----------------------------
-   Props / Emits
-   ----------------------------- */
+
+// Emits
 const props = defineProps<{ userData: any }>()
 const emit = defineEmits<{ logout: [] }>()
 
-/* -----------------------------
-   State
-   ----------------------------- */
+// States
 const conversations = ref<Conversation[]>([])
 const selectedConversation = ref<Conversation | null>(null)
 const messages = ref<Message[]>([])
@@ -123,9 +86,7 @@ const showAddParticipantsModal = ref(false)
 let socket: Socket | null = null
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
-/* -----------------------------
-   Utility Functions
-   ----------------------------- */
+// Utility Functions
 function showError(message: string) {
   errorMessage.value = message
   setTimeout(() => {
@@ -149,15 +110,13 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-/* -----------------------------
-   Normalizers
-   ----------------------------- */
+// Normalizers
 function normalizeUser(u: any): User {
   if (!u) return null as any
-  
+
   // Handle both MongoDB ObjectId and string IDs
   const userId = u._id?.toString() || u.id?.toString() || ''
-  
+
   return {
     id: userId,
     email: u.email ?? '',
@@ -169,7 +128,7 @@ function normalizeUser(u: any): User {
 
 function normalizeMessage(m: any): Message {
   if (!m) return null as any
-  
+
   // Handle nested conversation ID
   let conversationId = ''
   if (m.conversationId) {
@@ -177,7 +136,7 @@ function normalizeMessage(m: any): Message {
   } else if (m.conversation) {
     conversationId = m.conversation._id?.toString() || m.conversation.toString() || ''
   }
-  
+
   return {
     id: (m._id?.toString() || m.id?.toString() || ''),
     conversationId,
@@ -197,10 +156,10 @@ function normalizeMessage(m: any): Message {
 
 function normalizeConversation(c: any): Conversation {
   if (!c) return null as any
-  
+
   const conversationId = c._id?.toString() || c.id?.toString() || ''
   const createdBy = c.createdBy?._id?.toString() || c.createdBy?.toString() || ''
-  
+
   return {
     id: conversationId,
     name: c.name,
@@ -215,13 +174,11 @@ function normalizeConversation(c: any): Conversation {
   }
 }
 
-/* -----------------------------
-   Lifecycle
-   ----------------------------- */
+// Lifecycle
 onMounted(async () => {
   try {
     console.log('ChatInterface mounting with userData:', props.userData)
-    
+
     // Initialize current user with better error handling
     const userData = props.userData
     if (!userData) {
@@ -236,12 +193,10 @@ onMounted(async () => {
     let userName = ''
 
     if (userData.user) {
-      // Format: { user: { id, email, username } }
       userId = userData.user.id?.toString() || userData.user._id?.toString() || ''
       userEmail = userData.user.email || ''
       userName = userData.user.username || ''
     } else {
-      // Format: { id, email, username } or { _id, email, username }
       userId = userData.id?.toString() || userData._id?.toString() || ''
       userEmail = userData.email || ''
       userName = userData.username || ''
@@ -271,25 +226,23 @@ onMounted(async () => {
   }
 })
 
-// Add these two missing handlers to your ChatInterface.vue
-
 function handleConversationDeleted() {
-   console.log('handleConversationDeleted called')
+  console.log('handleConversationDeleted called')
   if (!selectedConversation.value) return
-  
+
   const conversationId = selectedConversation.value.id
-  
+
   // Leave socket room
   if (socket) {
     socket.emit('conversation:leave', { conversationId })
   }
-  
+
   // Remove from conversations list
   const index = conversations.value.findIndex(c => c.id === conversationId)
   if (index !== -1) {
     conversations.value.splice(index, 1)
   }
-  
+
   // Clear selection
   selectedConversation.value = null
   messages.value = []
@@ -298,7 +251,7 @@ function handleConversationDeleted() {
 function handleConversationUpdated(updatedConversation: Conversation) {
   // Update the selected conversation
   selectedConversation.value = updatedConversation
-  
+
   // Update in conversations list
   const index = conversations.value.findIndex(c => c.id === updatedConversation.id)
   if (index !== -1) {
@@ -312,9 +265,7 @@ onUnmounted(() => {
   }
 })
 
-/* -----------------------------
-   Socket
-   ----------------------------- */
+// Socket
 function initializeSocket() {
   try {
     const token = getAuthToken()
@@ -325,18 +276,32 @@ function initializeSocket() {
 
     console.log('Initializing socket connection...')
 
-    socket = io('http://localhost:3000', { 
+    socket = io('http://localhost:3000', {
       auth: { token },
       transports: ['websocket', 'polling']
     })
 
     socket.on('connect', () => {
       console.log('Connected to server, socket id=', socket?.id)
+      socket?.emit('online:users:request')
+    })
+
+    socket.on('online:users:list', ({ userIds }: { userIds: string[] }) => {
+      onlineUsers.value = new Set(userIds)
     })
 
     socket.on('connect_error', (error: unknown) => {
       console.error('Socket connection error:', error)
       showError('Failed to connect to chat server')
+    })
+
+    socket.on('message:read:server', ({ messageId, userId, readAt }) => {
+      const msg = messages.value.find(m => m.id === messageId)
+      if (msg) {
+        if (!msg.readBy.some(r => r.user === userId)) {
+          msg.readBy.push({ user: userId, readAt: new Date(readAt) })
+        }
+      }
     })
 
     socket.on('message:new', (raw: any) => {
@@ -345,7 +310,6 @@ function initializeSocket() {
         const message = normalizeMessage(raw)
         if (!message) return
 
-        // Add to messages if it's for the current conversation
         if (selectedConversation.value?.id === message.conversationId) {
           messages.value.push(message)
           nextTick(() => {
@@ -376,21 +340,21 @@ function initializeSocket() {
     })
 
     socket.on('typing:start:server', ({ userId, conversationId }: { userId: string; conversationId: string }) => {
-  if (selectedConversation.value?.id === conversationId && userId !== currentUser.value?.id) {
-    const user = selectedConversation.value.participants.find(p => p.id === userId)
-    if (user) {
-      const newMap = new Map(typingUsers.value)
-      newMap.set(conversationId, user.username)
-      typingUsers.value = newMap
-    }
-  }
-})
+      if (selectedConversation.value?.id === conversationId && userId !== currentUser.value?.id) {
+        const user = selectedConversation.value.participants.find(p => p.id === userId)
+        if (user) {
+          const newMap = new Map(typingUsers.value)
+          newMap.set(conversationId, user.username)
+          typingUsers.value = newMap
+        }
+      }
+    })
 
-socket.on('typing:stop:server', ({ conversationId }: { conversationId: string }) => {
-  const newMap = new Map(typingUsers.value)
-  newMap.delete(conversationId)
-  typingUsers.value = newMap
-})
+    socket.on('typing:stop:server', ({ conversationId }: { conversationId: string }) => {
+      const newMap = new Map(typingUsers.value)
+      newMap.delete(conversationId)
+      typingUsers.value = newMap
+    })
 
     socket.on('error', (err: any) => {
       console.error('Socket error:', err)
@@ -410,9 +374,7 @@ socket.on('typing:stop:server', ({ conversationId }: { conversationId: string })
   }
 }
 
-/* -----------------------------
-   API Functions
-   ----------------------------- */
+// API Functions
 async function loadConversations() {
   try {
     const token = getAuthToken()
@@ -431,7 +393,7 @@ async function loadConversations() {
 
     const res = await axios.get(`${API_BASE_URL}/chat/conversations`, {
       headers: getAuthHeaders(),
-      
+
     })
 
     if (res.data && Array.isArray(res.data)) {
@@ -443,7 +405,7 @@ async function loadConversations() {
   } catch (err: any) {
     console.error('Failed to load conversations:', err)
     console.error('Error response:', err.response?.data)
-    
+
     if (err.response?.status === 401) {
       showError('Authentication expired. Please login again.')
       handleLogout()
@@ -547,9 +509,7 @@ async function handleMessagesUpdated() {
   }
 }
 
-/* -----------------------------
-   Conversation Management
-   ----------------------------- */
+// Conversation Management
 async function createDirectConversation(email: string) {
   try {
     if (!email || !email.trim()) {
@@ -571,13 +531,12 @@ async function createDirectConversation(email: string) {
 
     if (res.data) {
       const newConv = normalizeConversation(res.data)
-      
+
       // Ensure current user is in participants
       if (currentUser.value && !newConv.participants.some(p => p.id === currentUser.value?.id)) {
         newConv.participants.unshift(currentUser.value)
       }
 
-      // Check if conversation already exists in list
       const existingIndex = conversations.value.findIndex(c => c.id === newConv.id)
       if (existingIndex !== -1) {
         conversations.value[existingIndex] = newConv
@@ -596,10 +555,10 @@ async function createDirectConversation(email: string) {
   }
 }
 
-async function createGroupConversation(data: { 
+async function createGroupConversation(data: {
   name: string
   participantEmails: string[]
-  description?: string 
+  description?: string
 }) {
   try {
     if (!data.name || !data.name.trim()) {
@@ -632,7 +591,7 @@ async function createGroupConversation(data: {
 
     if (res.data) {
       const newConv = normalizeConversation(res.data)
-      
+
       // Ensure current user is in participants
       if (currentUser.value && !newConv.participants.some(p => p.id === currentUser.value?.id)) {
         newConv.participants.unshift(currentUser.value)
@@ -682,12 +641,12 @@ async function addParticipants(participantEmails: string[]) {
     if (res.data) {
       const updated = normalizeConversation(res.data)
       selectedConversation.value = updated
-      
+
       const idx = conversations.value.findIndex(c => c.id === updated.id)
       if (idx !== -1) {
         conversations.value[idx] = updated
       }
-      
+
       showAddParticipantsModal.value = false
       showSuccess('Participants added successfully')
     }
@@ -698,9 +657,7 @@ async function addParticipants(participantEmails: string[]) {
   }
 }
 
-/* -----------------------------
-   Helper Functions
-   ----------------------------- */
+// Helper Functions
 function updateConversationWithNewMessage(message: Message) {
   try {
     const convIndex = conversations.value.findIndex(c => c.id === message.conversationId)
@@ -708,7 +665,7 @@ function updateConversationWithNewMessage(message: Message) {
       const conv = { ...conversations.value[convIndex] }
       conv.lastMessage = message
       conv.lastActivity = message.createdAt
-      
+
       // Move to top of list
       conversations.value.splice(convIndex, 1)
       conversations.value.unshift(conv)
@@ -720,29 +677,19 @@ function updateConversationWithNewMessage(message: Message) {
 
 async function markMessageAsRead(messageId: string) {
   try {
-    if (!selectedConversation.value || !currentUser.value) return
+    if (!selectedConversation.value || !currentUser.value || !socket) return
 
-    const token = getAuthToken()
-    if (!token) return
-
-    // Use the correct API endpoint from your backend
-    await axios.post(
-      `${API_BASE_URL}/chat/messages/read`,
-      {
-        conversationId: selectedConversation.value.id,
-        messageId: messageId
-      },
-      { headers: getAuthHeaders() }
-    )
+    socket.emit('message:read:client', {
+      conversationId: selectedConversation.value.id,
+      messageId: messageId
+    })
   } catch (error) {
     // Silently fail for read receipts
     console.error('Failed to mark message as read:', error)
   }
 }
 
-/* -----------------------------
-   Logout
-   ----------------------------- */
+// Logout
 function handleLogout() {
   try {
     localStorage.removeItem('auth_token')
@@ -752,14 +699,13 @@ function handleLogout() {
     emit('logout')
   } catch (error) {
     console.error('Error during logout:', error)
-  } 
+  }
 }
 
 provide('socket', socket)
 </script>
 
 <style scoped>
-/* Add any additional styles here */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;

@@ -42,7 +42,7 @@ let ChatService = class ChatService {
                 throw new common_1.BadRequestException('Invalid user ID');
             }
             const participant = await this.userModel.findOne({
-                email: participantEmail.trim().toLowerCase()
+                email: participantEmail.trim().toLowerCase(),
             });
             if (!participant) {
                 throw new common_1.NotFoundException('User not found with that email');
@@ -106,8 +106,8 @@ let ChatService = class ChatService {
                 throw new common_1.BadRequestException('Invalid user ID');
             }
             const cleanEmails = participantEmails
-                .map(email => email.trim().toLowerCase())
-                .filter(email => email.length > 0);
+                .map((email) => email.trim().toLowerCase())
+                .filter((email) => email.length > 0);
             if (cleanEmails.length === 0) {
                 throw new common_1.BadRequestException('Valid participant emails are required');
             }
@@ -115,8 +115,8 @@ let ChatService = class ChatService {
                 email: { $in: cleanEmails },
             });
             if (participants.length !== cleanEmails.length) {
-                const foundEmails = participants.map(p => p.email);
-                const notFound = cleanEmails.filter(email => !foundEmails.includes(email));
+                const foundEmails = participants.map((p) => p.email);
+                const notFound = cleanEmails.filter((email) => !foundEmails.includes(email));
                 throw new common_1.NotFoundException(`Users not found: ${notFound.join(', ')}`);
             }
             const participantIds = participants.map((p) => p._id);
@@ -180,7 +180,7 @@ let ChatService = class ChatService {
     }
     async sendMessage(userId, sendMessageDto) {
         try {
-            const { conversationId, content, type = 'text', replyTo } = sendMessageDto;
+            const { conversationId, content, type = 'text', replyTo, } = sendMessageDto;
             if (!content || !content.trim()) {
                 throw new common_1.BadRequestException('Message content is required');
             }
@@ -330,8 +330,8 @@ let ChatService = class ChatService {
                 throw new common_1.ForbiddenException('You are not a participant in this conversation');
             }
             const cleanEmails = participantEmails
-                .map(email => email.trim().toLowerCase())
-                .filter(email => email.length > 0);
+                .map((email) => email.trim().toLowerCase())
+                .filter((email) => email.length > 0);
             if (cleanEmails.length === 0) {
                 throw new common_1.BadRequestException('Valid participant emails are required');
             }
@@ -339,8 +339,8 @@ let ChatService = class ChatService {
                 email: { $in: cleanEmails },
             });
             if (newParticipants.length !== cleanEmails.length) {
-                const foundEmails = newParticipants.map(p => p.email);
-                const notFound = cleanEmails.filter(email => !foundEmails.includes(email));
+                const foundEmails = newParticipants.map((p) => p.email);
+                const notFound = cleanEmails.filter((email) => !foundEmails.includes(email));
                 throw new common_1.NotFoundException(`Users not found: ${notFound.join(', ')}`);
             }
             const newParticipantIds = newParticipants
@@ -511,7 +511,9 @@ let ChatService = class ChatService {
                     user: (r.user?._id ?? r.user)?.toString() ?? '',
                     readAt: r.readAt ?? new Date(),
                 })),
-                replyTo: message.replyTo ? this.formatMessageResponse(message.replyTo) : undefined,
+                replyTo: message.replyTo
+                    ? this.formatMessageResponse(message.replyTo)
+                    : undefined,
             };
         }
         catch (error) {
@@ -551,7 +553,8 @@ let ChatService = class ChatService {
     }
     async validateConversationAccess(userId, conversationId) {
         try {
-            if (!mongoose_2.Types.ObjectId.isValid(userId) || !mongoose_2.Types.ObjectId.isValid(conversationId)) {
+            if (!mongoose_2.Types.ObjectId.isValid(userId) ||
+                !mongoose_2.Types.ObjectId.isValid(conversationId)) {
                 return false;
             }
             const conversation = await this.conversationModel.findById(conversationId);
@@ -577,7 +580,7 @@ let ChatService = class ChatService {
             if (!participantIds || participantIds.length === 0) {
                 throw new common_1.BadRequestException('At least one participant ID is required');
             }
-            const invalidIds = participantIds.filter(id => !mongoose_2.Types.ObjectId.isValid(id));
+            const invalidIds = participantIds.filter((id) => !mongoose_2.Types.ObjectId.isValid(id));
             if (invalidIds.length > 0) {
                 throw new common_1.BadRequestException('Invalid participant IDs provided');
             }
@@ -595,10 +598,10 @@ let ChatService = class ChatService {
                 throw new common_1.BadRequestException('Admin cannot remove themselves from the group');
             }
             const participantsToRemove = await this.userModel.find({
-                _id: { $in: participantIds.map(id => new mongoose_2.Types.ObjectId(id)) }
+                _id: { $in: participantIds.map((id) => new mongoose_2.Types.ObjectId(id)) },
             });
-            const removedUsernames = participantsToRemove.map(p => p.username);
-            conversation.participants = conversation.participants.filter((p) => !participantIds.some(id => p.toString() === id));
+            const removedUsernames = participantsToRemove.map((p) => p.username);
+            conversation.participants = conversation.participants.filter((p) => !participantIds.some((id) => p.toString() === id));
             conversation.lastActivity = new Date();
             await conversation.save();
             await this.createSystemMessage(conversationId, `${removedUsernames.join(', ')} ${removedUsernames.length === 1 ? 'was' : 'were'} removed from the group`);
@@ -636,7 +639,7 @@ let ChatService = class ChatService {
             if (!messageIds || messageIds.length === 0) {
                 throw new common_1.BadRequestException('At least one message ID is required');
             }
-            const invalidIds = messageIds.filter(id => !mongoose_2.Types.ObjectId.isValid(id));
+            const invalidIds = messageIds.filter((id) => !mongoose_2.Types.ObjectId.isValid(id));
             if (invalidIds.length > 0) {
                 throw new common_1.BadRequestException('Invalid message IDs provided');
             }
@@ -647,15 +650,16 @@ let ChatService = class ChatService {
             if (!conversation.participants.some((p) => p.toString() === userId)) {
                 throw new common_1.ForbiddenException('You are not a participant in this conversation');
             }
-            const isAdmin = conversation.type === 'group' && conversation.createdBy.toString() === userId;
+            const isAdmin = conversation.type === 'group' &&
+                conversation.createdBy.toString() === userId;
             const messages = await this.messageModel.find({
-                _id: { $in: messageIds.map(id => new mongoose_2.Types.ObjectId(id)) },
+                _id: { $in: messageIds.map((id) => new mongoose_2.Types.ObjectId(id)) },
                 conversationId: new mongoose_2.Types.ObjectId(conversationId),
             });
             if (messages.length === 0) {
                 return {
                     deletedCount: 0,
-                    skippedCount: messageIds.length
+                    skippedCount: messageIds.length,
                 };
             }
             let deletableMessages;
@@ -663,19 +667,19 @@ let ChatService = class ChatService {
                 deletableMessages = messages;
             }
             else {
-                deletableMessages = messages.filter(msg => msg.sender?.toString() === userId);
+                deletableMessages = messages.filter((msg) => msg.sender?.toString() === userId);
             }
             const skippedCount = messageIds.length - deletableMessages.length;
             if (deletableMessages.length === 0) {
                 return {
                     deletedCount: 0,
-                    skippedCount: messageIds.length
+                    skippedCount: messageIds.length,
                 };
             }
             await this.messageModel.deleteMany({
-                _id: { $in: deletableMessages.map(msg => msg._id) }
+                _id: { $in: deletableMessages.map((msg) => msg._id) },
             });
-            const lastMessageDeleted = deletableMessages.some(msg => msg._id.toString() === conversation.lastMessage?.toString());
+            const lastMessageDeleted = deletableMessages.some((msg) => msg._id.toString() === conversation.lastMessage?.toString());
             if (lastMessageDeleted) {
                 const newLastMessage = await this.messageModel
                     .findOne({ conversationId: new mongoose_2.Types.ObjectId(conversationId) })
@@ -689,7 +693,7 @@ let ChatService = class ChatService {
                 deletedCount: deletableMessages.length,
                 skippedCount,
             };
-            this.chatGateway.emitMessageDeleted(conversationId, deletableMessages.map(msg => msg._id.toString()), userId, result);
+            this.chatGateway.emitMessageDeleted(conversationId, deletableMessages.map((msg) => msg._id.toString()), userId, result);
             return result;
         }
         catch (error) {
@@ -717,14 +721,15 @@ let ChatService = class ChatService {
             if (!conversation.participants.some((p) => p.toString() === userId)) {
                 throw new common_1.ForbiddenException('You are not a participant in this conversation');
             }
-            if (conversation.type === 'group' && conversation.createdBy.toString() !== userId) {
+            if (conversation.type === 'group' &&
+                conversation.createdBy.toString() !== userId) {
                 throw new common_1.ForbiddenException('Only group admin can clear chat history');
             }
             const messageCount = await this.messageModel.countDocuments({
-                conversationId: new mongoose_2.Types.ObjectId(conversationId)
+                conversationId: new mongoose_2.Types.ObjectId(conversationId),
             });
             await this.messageModel.deleteMany({
-                conversationId: new mongoose_2.Types.ObjectId(conversationId)
+                conversationId: new mongoose_2.Types.ObjectId(conversationId),
             });
             await this.conversationModel.findByIdAndUpdate(conversationId, {
                 lastMessage: null,
@@ -774,7 +779,8 @@ let ChatService = class ChatService {
                 updates.name = name.trim();
                 systemMessages.push(`Group name changed from "${oldName}" to "${name.trim()}"`);
             }
-            if (description !== undefined && description !== conversation.description) {
+            if (description !== undefined &&
+                description !== conversation.description) {
                 updates.description = description?.trim() || undefined;
                 if (description?.trim()) {
                     systemMessages.push(`Group description updated`);
@@ -820,7 +826,9 @@ let ChatService = class ChatService {
             if (!mongoose_2.Types.ObjectId.isValid(userId)) {
                 throw new common_1.BadRequestException('Invalid user ID');
             }
-            const conversation = await this.conversationModel.findById(conversationId).populate('participants');
+            const conversation = await this.conversationModel
+                .findById(conversationId)
+                .populate('participants');
             if (!conversation) {
                 throw new common_1.NotFoundException('Conversation not found');
             }
@@ -829,7 +837,7 @@ let ChatService = class ChatService {
             }
             if (conversation.type === 'direct') {
                 await this.messageModel.deleteMany({
-                    conversationId: new mongoose_2.Types.ObjectId(conversationId)
+                    conversationId: new mongoose_2.Types.ObjectId(conversationId),
                 });
                 await this.conversationModel.findByIdAndDelete(conversationId);
                 return { message: 'Conversation deleted successfully' };
@@ -839,7 +847,7 @@ let ChatService = class ChatService {
                 const remainingParticipants = conversation.participants.filter((p) => p._id.toString() !== userId);
                 if (remainingParticipants.length === 0) {
                     await this.messageModel.deleteMany({
-                        conversationId: new mongoose_2.Types.ObjectId(conversationId)
+                        conversationId: new mongoose_2.Types.ObjectId(conversationId),
                     });
                     await this.conversationModel.findByIdAndDelete(conversationId);
                     return { message: 'Group deleted successfully' };
@@ -862,7 +870,7 @@ let ChatService = class ChatService {
                         message: 'Left group successfully',
                         reassigned: true,
                         newAdmin: newAdminId.toString(),
-                        updatedConversation: populatedConversation
+                        updatedConversation: populatedConversation,
                     };
                 }
                 else {
@@ -906,7 +914,8 @@ let ChatService = class ChatService {
             if (!conversation.participants.some((p) => p._id.toString() === userId)) {
                 throw new common_1.ForbiddenException('You are not a participant in this conversation');
             }
-            const isAdmin = conversation.type === 'group' && conversation.createdBy.toString() === userId;
+            const isAdmin = conversation.type === 'group' &&
+                conversation.createdBy.toString() === userId;
             const canManage = conversation.type === 'direct' || isAdmin;
             return {
                 ...this.formatConversationResponse(conversation),

@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
@@ -78,7 +82,6 @@ export class AuthService {
       return null;
     }
 
-    // Return user without password
     const { password: _, ...result } = user.toObject();
     return result;
   }
@@ -89,7 +92,6 @@ export class AuthService {
       return null;
     }
 
-    // Return user without password
     const { password: _, ...result } = user.toObject();
     return result;
   }
